@@ -1,0 +1,46 @@
+-- GENERAL INFO: --
+true = 0x10 (equals 16 in decimal)
+false = 0x0
+
+E.G:
+memory.writebyte(base + address + mask, 0x10) -- sets address value to true
+
+prints are memory intensive, it makes the emulator drop by fps
+
+
+
+emu.lua functions:
+
+ismainwindowinforeground
+getversion
+atinput -- loop, the most reccomended: runs every game frame, stops when emulator stops
+get_ff
+statusbar
+screenshot
+debugview
+getpause
+speedmode
+atstop
+isreadonly
+set_ff
+atstopmovie
+atsavestate
+atreset
+atinterval -- loop
+setgfx
+atplaymovie
+getsystemmetrics
+getaddress
+atwindowmessage
+speed -- setter
+atvi -- loop, reccomended
+getspeed
+atloadstate
+samplecount
+play_sound -- string as argument, does nothing???
+inputcount
+atdrawd2d -- loop
+framecount
+pause -- it should accept an integer paremeter (0 or 1?)
+console -- makes emulator crash? use print() instead
+atupdatescreen -- loop
