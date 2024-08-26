@@ -1,4 +1,4 @@
-# Super Mario 64 LUA SCRIPTS for `Mupen 64 1.1.8-2` - by Veddy1674
+# Super Mario 64 LUA SCRIPTS for `Mupen 64 1.0.10 & 1.1.8-2` - by Veddy1674
 
 Youtube: https://www.youtube.com/@veddy1674 - Here I publish random videos, there is some old bad video about SM64 though
 
