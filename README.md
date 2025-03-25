@@ -10,3 +10,7 @@ To start, you can edit `main.lua`, it is HIGHLY RECOMMENDED to use an IDE like V
 New updated scripts (just a few sadly) now contain annotations for easy auto-completion.
 
 `doc.txt` contains some useful info about *Mupen's lua global variables* for further debugging, as apparently there isn't any documentation on it.
+
+`./tasbots/...` here you can see a simple example of AI (classic RL with states)
+(little note: I changed something in the ai script and cannot find out what, so right now it doesn't work, if you want to fix it yourself, it's probably something about formulas)
+The way the script works (check main.lua) is that a pre-determined object (in my case 43, a coin) is chosen and the AI must learn to collect it.
