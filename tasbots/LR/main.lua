@@ -2,17 +2,16 @@
 local aiFactory = require("tasbots.LR.aiRL")
 local om = require("lua.object.ObjectManager")
 local mathDist = require("lua.math.Distance")
+local mario = require("lua.mario.Mario")
 
 -- only one action per tick
-local actions = {function()
-    joypad.set(joypad.right)
-end, function()
-    joypad.set(joypad.left)
-end, function()
-    joypad.set(joypad.up)
-end, function()
-    joypad.set(joypad.down)
-end}
+local actions = {
+    ["right"] = function() joypad.add(joypad.right) end,
+    ["left"] = function() joypad.add(joypad.left) end,
+    ["up"] = function() joypad.add(joypad.up) end,
+    ["down"] = function() joypad.add(joypad.down) end,
+    --["A"] = function() joypad.add({A = true}) end,
+}
 
 ---@type Object
 local goalObj = nil
@@ -27,6 +26,10 @@ local maxIterations = 40
 local function condition()
     return ai.bestTime < 30 * 2.00
     -- return loadStateCount >= maxIterations
+end
+
+local function goalReached()
+    return mathDist.marioTo(goalObj) <= 160
 end
 
 local savePath = "lua/tasbots/LR/example.st1"
@@ -51,7 +54,7 @@ local function start()
     goalObj = om.getObjects()[43]
     print("Goal Object is a " .. goalObj.group())
 
-    print("It will take about " .. (maxIterations * maxTimer / 30) / (emu.getspeed() / 100) .. " seconds")
+    print("It will take about " .. (maxIterations * maxTimer / 30) / (emu.getSpeed() / 100) .. " seconds")
     -- when distance.marioTo(goalObj) is <= 160 the goal is reached and reset is called
     -- if it takes more than 6 seconds it gets resetted
     savestate.savefile(savePath)
@@ -63,20 +66,31 @@ local function start()
         epsilonDecay = 0.999,
         actions = actions
     }, actions, goalObj, function()
-		-- goal reached condition
-		return mathDist.marioTo(goalObj) <= 160
 
-	end, function(ticksTaken)
-		-- faster and closer = reward
-		local x, y, z = ai.getDistance().tuple()
-		print(ticksTaken)
-        local distReward = 100 / math.floor((math.sqrt(x * x + y * y + z * z)))
-        --local timePenalty = -(ticksTaken/30) * 10 -- slightly less so that distance is prioritized
+        local dx = math.floor(mario.pos.x / 100)
+        local dy = math.floor(mario.pos.y / 100)
+        local dz = math.floor(mario.pos.z / 100)
+        local state = tostring(dx) .. "," .. tostring(dy) .. "," .. tostring(dz)
+        return state -- e.g "1,2,3"
 
-		local success = ai.goalReachedCondition() and 1 or -1
-		return distReward + success-- + timePenalty
+    end, function()
+        -- Per Tick Reward
 
-	end)
+        local distReward = mario.coins --(160 * 2 - mathDist.marioTo(goalObj)) / 1000
+        --print(ai.trust)
+        print(distReward)
+        return distReward
+
+    end, function(ticksTaken)
+        -- Per Generation Reward
+
+        -- 150 : 2 = ticks : x --> x = 2*ticks / 150
+        -- local timeReward = -1 * (2 * ticksTaken / 150)
+
+        -- local successReward = goalReached() and 1 or -1
+        return 0 -- timeReward + successReward
+
+    end)
 
     ai.loadTrustData(saveFile)
 end
@@ -87,28 +101,31 @@ local function update()
     end
 
     timer = timer + 1
-    local reachedGoal = ai.goalReachedCondition()
+    local reachedGoal = goalReached()
+    local resetTotalTickReward = false
 
-    if timer >= maxTimer or reachedGoal then
-        local reward = ai.updateTrust(timer)
+    if false then --timer >= maxTimer or reachedGoal then
+        resetTotalTickReward = true
+        local tickRewardTotal, genReward = ai.updateTrust(timer)
 
         local success = reachedGoal and "SUCCESS" or "FAILURE"
-        print("Iteration " .. loadStateCount + 1 .. "/" .. maxIterations .. " - " .. success .. " - " ..
-                  string.format("%.2f", timer / 30) .. "s" .. " - Reward: " .. reward)
+        print("Generation " .. loadStateCount + 1 .. "/" .. maxIterations .. " - " .. success .. " - " ..
+                  string.format("%.2f", timer / 30) .. "s" .. " - Reward: " .. genReward .. " + " .. tickRewardTotal ..
+                  " = " .. genReward + tickRewardTotal)
 
         reset()
         timer = 0
     end
 
-    ai.performAction()
+    ai.performAction(resetTotalTickReward)
 end
 
 start()
 
-emu.atinput(function()
+emu.update(function()
     update()
 end)
 
-emu.atstop(function()
+emu.stopped(function()
     reset()
 end)

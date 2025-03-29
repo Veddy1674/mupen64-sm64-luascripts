@@ -19,4 +19,4 @@ end
 
 start()
 
-emu.atinput(update)
+emu.update(update)

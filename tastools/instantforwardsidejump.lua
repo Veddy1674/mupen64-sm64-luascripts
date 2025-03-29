@@ -79,6 +79,6 @@ end
 
 _G.start(start)
 
-emu.atinput(update)
+emu.update(update)
 
 -- emu.atvi(waitForA) -- runs while emulation is stopped

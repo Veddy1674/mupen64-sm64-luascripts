@@ -70,7 +70,7 @@ local function encode_table(val, stack)
     local n = 0
     for k in pairs(val) do
       if type(k) ~= "number" then
-        error("invalid table: mixed or invalid key types")
+        error("invalid table: mixed or invalid key Types")
       end
       n = n + 1
     end
@@ -88,7 +88,7 @@ local function encode_table(val, stack)
     -- Treat as an object
     for k, v in pairs(val) do
       if type(k) ~= "string" then
-        error("invalid table: mixed or invalid key types")
+        error("invalid table: mixed or invalid key Types")
       end
       table.insert(res, encode(k, stack) .. ":" .. encode(v, stack))
     end

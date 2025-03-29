@@ -1,29 +1,8 @@
 -- Distance.lua
 
-require("lua.misc.Property")
-local mario = require("lua.mario.Mario")
+require("misc.Utils")
 
 local module = {}
-
----@return number
-function module.marioTo(object)
-	if (not object or not object.pos) then
-		error("Invalid object")
-		---@type number
-		return nil
-	end
-	return module.objToObj(mario, object)
-end
-
----@return Vector3
-function module.marioWorldDistance(object)
-	if (not object or not object.pos) then
-		error("Invalid object")
-		---@type Vector3
-		return nil
-	end
-	return module.worldDistance(mario, object)
-end
 
 ---@return number
 function module.objToObj(o1, o2)

@@ -12,15 +12,17 @@ local mario = require("lua.mario.Mario")
 ---@field settings AIRLSettings
 ---@field trust table
 ---@field state number[]
----@field actions function[]
+---@field actions table -- [string] : fun()
 ---@field actionHistory table -- ??
 ---@field goalObj Object
----@field goalReachedCondition fun():boolean
----@field rewardFormula fun(ticksTaken:number):number
+---@field stateFormula fun():string
+---@field tickRewardFormula fun():number
+---@field generationRewardFormula fun(ticksTaken:number):number
+---@field totalTickReward number
 ---@field bestTime number
 ---@field getDistance fun():Vector3
----@field performAction fun()
----@field updateTrust fun(timeTaken:number):number
+---@field performAction fun(boolean)
+---@field updateTrust fun(timeTaken:number):number,number
 ---@field saveTrustData fun(saveFile:string|nil)
 ---@field loadTrustData fun(saveFile:string|nil)
 ---@field info fun()
@@ -28,51 +30,105 @@ local ai = {}
 ai.__index = ai
 
 ---@param settings AIRLSettings
----@param actions function[]
+---@param actions table
 ---@param goalObj Object
-function ai.new(settings, actions, goalObj, goalReachedCondition, rewardFormula)
+function ai.new(settings, actions, goalObj, stateFormula, tickRewardFormula, generationRewardFormula)
     local self = setmetatable({}, ai)
     ---@type table
-    self.settings = {}
-    self.settings.alpha = settings.alpha -- learning rate
-    self.settings.gamma = settings.gamma -- discount factor
-    self.settings.epsilon = settings.epsilon -- start exploration
-    self.settings.epsilonDecay = settings.epsilonDecay -- exploration decay
+    self.settings = {
+        alpha = settings.alpha, -- learning rate
+        gamma = settings.gamma, -- discount factor
+        epsilon = settings.epsilon, -- start exploration
+        epsilonDecay = settings.epsilonDecay, -- exploration decay
+    }
 
     self.trust = {} -- trust is unique for every state
     self.actions = actions -- { right = function() ... end }
     self.actionHistory = {}
     self.goalObj = goalObj
 
-    self.goalReachedCondition = goalReachedCondition
-    self.rewardFormula = rewardFormula
+    self.stateFormula = stateFormula
+    self.tickRewardFormula = tickRewardFormula
+    self.generationRewardFormula = generationRewardFormula
+    self.totalTickReward = 0
 
     self.bestTime = math.huge
 
     -- Local Functions
-    local function getBestAction()
-        if not self.trust[self.state] then
-            return self.actions[math.random(#self.actions)]
+    local function getRandomActions()
+        local actionNames = {}
+        for name, _ in pairs(self.actions) do
+            table.insert(actionNames, name)
         end
 
-        local bestAction, bestValue = nil, -math.huge
-        for action, value in pairs(self.trust[self.state]) do
+        -- Seleziona un numero casuale di azioni (da 1 a #actionNames)
+        local numActions = math.random(1, #actionNames)
+        local selectedActions = {}
+
+        for _ = 1, numActions do
+            local randomIndex = math.random(#actionNames)
+            table.insert(selectedActions, actionNames[randomIndex])
+            table.remove(actionNames, randomIndex) -- Evita duplicati
+        end
+
+        return selectedActions
+    end
+
+    local function getBestActions()
+        if not self.trust[self.state] then
+            return getRandomActions()
+        end
+    
+        local bestActions = {}
+        local bestValue = -math.huge
+    
+        for actionName, value in pairs(self.trust[self.state]) do
             if value > bestValue then
-                bestAction, bestValue = action, value
+                bestActions = { actionName }
+                bestValue = value
+            elseif value == bestValue then
+                table.insert(bestActions, actionName)
             end
         end
-        return bestAction or self.actions[math.random(#self.actions)]
+    
+        return bestActions
+    end
+
+    local function updateActionTrust(actionEntry, reward)
+        local state = actionEntry.state
+        local action = actionEntry.action
+
+        if not self.trust[state] then
+            self.trust[state] = {}
+            for aName, _ in pairs(self.actions) do
+                self.trust[state][aName] = 0
+            end
+        end
+
+        local maxFutureValue = 0
+        local nextState = self.stateFormula()
+        if self.trust[nextState] then
+            for _, value in pairs(self.trust[nextState]) do
+                maxFutureValue = math.max(maxFutureValue, value)
+            end
+        end
+        
+        if self.trust[state][action] then
+            self.trust[state][action] = self.trust[state][action] + self.settings.alpha *
+                (reward + self.settings.gamma * maxFutureValue - self.trust[state][action])
+        end
+
     end
 
     setmetatable(self, {
         __index = function(tbl, key)
             if key == "state" then -- getter for self.state
                 -- state should be distance
-                local dx = math.floor(mario.pos.x / 100)
-                local dy = math.floor(mario.pos.y / 100)
-                local dz = math.floor(mario.pos.z / 100)
-                local state = tostring(dx) .. "," .. tostring(dy) .. "," .. tostring(dz)
-                return state
+                return self.stateFormula()
+            elseif key == "trust" then
+                for actionName, _ in ipairs(self.actions) do
+                    return actionName .. " - " .. self.trust[self.state][actionName]
+                end
             else
                 return rawget(tbl, key) or ai[key]
             end
@@ -80,32 +136,46 @@ function ai.new(settings, actions, goalObj, goalReachedCondition, rewardFormula)
     })
 
     -- Global Functions
-    function self.getDistance()
-        return mathDist.marioWorldDistance(self.goalObj)
-    end
+    function self.performAction(resetTotalTickReward)
+        if resetTotalTickReward then
+            self.totalTickReward = 0
+        end
 
-    function self.performAction()
         if not self.trust[self.state] then
             self.trust[self.state] = {}
-            for _, action in ipairs(self.actions) do
-                self.trust[self.state][action] = 0
+            for aName, _ in pairs(self.actions) do
+                self.trust[self.state][aName] = 0
             end
         end
 
-        local chosenAction
-        if math.random() < self.settings.epsilon then
-            chosenAction = self.actions[math.random(#self.actions)]
-        else
-            chosenAction = getBestAction()
+        local chosenActions
+    if math.random() < self.settings.epsilon then
+        chosenActions = getRandomActions()
+    else
+        chosenActions = getBestActions()
+    end
+
+    -- run all selected actions
+    for _, actionName in ipairs(chosenActions) do
+        local actionFunc = self.actions[actionName]
+        if actionFunc then
+            actionFunc()
         end
+    end
 
-        chosenAction()
+    -- save actions to history
+    local actionEntry = {
+        state = self.state,
+        actions = chosenActions
+    }
+    table.insert(self.actionHistory, actionEntry)
 
-        -- save action to history
-        table.insert(self.actionHistory, {
-            state = self.state,
-            action = chosenAction
-        })
+    -- mini-reward (usually related to distance)
+    local reward = self.tickRewardFormula()
+    updateActionTrust(actionEntry, reward)
+    self.totalTickReward = self.totalTickReward + reward
+
+    self.settings.epsilon = math.max(0.01, self.settings.epsilon * self.settings.epsilonDecay)
     end
 
     function self.updateTrust(ticksTaken)
@@ -114,29 +184,17 @@ function ai.new(settings, actions, goalObj, goalReachedCondition, rewardFormula)
         end
 
         -- q-learning
-        local reward = self.rewardFormula(ticksTaken)
+        local genReward = self.generationRewardFormula(ticksTaken)
 
         -- update trust for every action in history
-        for _, entry in ipairs(self.actionHistory) do
-            local state = entry.state
-            local action = entry.action
-
-            if not self.trust[state] then
-                self.trust[state] = {}
-                for _, a in ipairs(self.actions) do
-                    self.trust[state][a] = 0
-                end
-            end
-
-            local maxFutureValue = 0 -- Non consideriamo il futuro in questo caso
-            self.trust[state][action] = self.trust[state][action] + self.settings.alpha *
-                                            (reward + self.settings.gamma * maxFutureValue - self.trust[state][action])
+        for _, action in ipairs(self.actionHistory) do
+            updateActionTrust(action, genReward)
         end
 
         self.actionHistory = {}
-
         self.settings.epsilon = math.max(0.1, self.settings.epsilon * self.settings.epsilonDecay)
-        return reward
+
+        return self.totalTickReward, genReward
     end
 
     ---@param saveFile string

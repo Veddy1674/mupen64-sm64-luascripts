@@ -21,4 +21,4 @@ function update()
 	end
 end
 
-emu.atinput(update)
+emu.update(update)

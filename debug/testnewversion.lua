@@ -17,7 +17,7 @@ end
 
 _G.start(start)
 
-emu.atinput(update)
+emu.update(update)
 
 -- Differences noticed:
 --[[

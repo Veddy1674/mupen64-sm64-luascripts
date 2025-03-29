@@ -17,6 +17,6 @@ end
 
 start()
 
-emu.atinput(function()
+emu.update(function()
     update()
 end)

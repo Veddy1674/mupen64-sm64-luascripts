@@ -6,12 +6,16 @@
 ---@field z number
 ---@field clone fun():Vector3
 ---@field tuple fun():number, number, number
+---@field info fun(decimals?:integer):string
+---@field equals fun(other:Vector3):boolean
+---@field set fun(arg:string, val:number):Vector3
+---@field distance fun(other:Vector3):number
 Vector3 = {}
 Vector3.__index = Vector3
 
----@param x number
----@param y number
----@param z number
+---@param x? number
+---@param y? number
+---@param z? number
 ---@return Vector3
 function Vector3.new(x, y, z)
     local self = setmetatable({}, Vector3)
@@ -29,5 +33,41 @@ function Vector3.new(x, y, z)
         return self.x, self.y, self.z
     end
 
+    function self.info(decimals)
+        decimals = decimals and decimals or -1
+        local decText = decimals >= 0 and ("%." .. decimals .. "f") or "%f"
+        return string.format("{x=" .. decText .. ", y=" .. decText .. ", z=" .. decText .. "}", self.x, self.y, self.z)
+    end
+
+    function self.equals(other)
+        return self == other
+    end
+
+    function self.set(arg, val)
+        local new = self.clone()
+        new[arg] = val
+        return new
+    end
+
+    function self.distance(other)
+        return math.sqrt((self.x - other.x)^2 + (self.y - other.y)^2 + (self.z - other.z)^2)
+    end
+    
     return self
+end
+
+-- override == operator
+function Vector3.__eq(a, b)
+    if getmetatable(a) ~= Vector3 or getmetatable(b) ~= Vector3 then
+        return false
+    end
+    return a.x == b.x and a.y == b.y and a.z == b.z
+end
+
+function Vector3.__add(a, b)
+    return Vector3.new(a.x + b.x, a.y + b.y, a.z + b.z)
+end
+
+function Vector3.__sub(a, b)
+    return Vector3.new(a.x - b.x, a.y - b.y, a.z - b.z)
 end

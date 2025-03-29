@@ -9,32 +9,29 @@ local distance = require("lua.math.Distance")
 
 local om = {}
 
--- objectsOrder enum has been removed
+local startAddress = 0x8033D488 -- first object
 
---local previousObjects = {} (TODO line 30)
-
+---@return Object[]
 function om.getObjects(order)
-	local baseAddress = 0x8033D488 -- always the same
     local objects = {}
 
 	-- max 240 objects can be loaded
-    for slotIndex = 0, 240 - 1 do -- must start from zero, the real slotIndex should be +1
-        local address = baseAddress + (slotIndex * 0x260) -- memory processing order
-        table.insert(objects, object.new(address, slotIndex + 1))
+    for slotIndex = 1, 240 do
+ 		-- memory processing order
+        table.insert(objects, object.new(startAddress, slotIndex))
     end
 
-	if order ~= nil and order ~= "Memory" then
+	if order ~= nil and order ~= "memory" then
 		om.reorderObjects(objects, order)
 	end
-
-	--objects.order = function() return order end
-	objects.order = order --! function is printed in a foreach loop, properties not, so please DO NOT modify this property in a script
-    ---@type Object[]
+	
+	-- read-only
+	objects.order = order
 	return objects
 end
 
 function om.reorderObjects(objectList, order)
-	if order == "Memory" then
+	if order == "memory" then
 		return om.getObjects()
 
 	elseif order == "DistToMario" then
@@ -55,52 +52,43 @@ function om.findEmptyCell() -- returns first empty object
 	end
 end
 
-function om.spawnObject(name, pos, speed)
-	local object = om.findEmptyCell()
-	object.clear()
-
-	for n, obj in pairs(olist) do
-		if n == name then
-			object.bhvscript(obj.bhvscript)
-			object.graphics(obj.graphics)
-			object.model(obj.model)
-			for name, customProperty in pairs(obj.other) do
-				--object[name] = property.new(object.base, customProperty.offset, customProperty.vartype)
-				object[name](customProperty.default)
-			end
-			break
-		end
-	end
-
-	if pos then
-		object.pos.x = pos.x
-		object.pos.y = pos.y
-		object.pos.z = pos.z
-	end
-	if speed then
-		object.speed.h = speed.h
-		object.speed.x = speed.x
-		object.speed.y = speed.y
-		object.speed.z = speed.z
-	end
-
-	object.visible(true)
-	object.active(true)
-
-	return object
+function om.reviveObject(o)
+	o.setActive(true)
 end
 
-function om.duplicate(slotIndex)
-	local objectToDuplicate = om.getObjects()[slotIndex]
+function om.spawnObject(o)
+	local obj = om.findEmptyCell()
+	print(obj.slotIndex)
+	obj.clear()
 
-	local pos = {
-		x = objectToDuplicate.pos.x,
-		y = objectToDuplicate.pos.y,
-		z = objectToDuplicate.pos.z
-	}
-	local objectDuplicated = om.spawnObject(objectToDuplicate.name(), pos)
+	obj.bhvscript(o.bhvscript())
+	obj.graphics(o.graphics())
+	obj.model(o.model())
 
-	return objectDuplicated
+	obj.pos(o.pos())
+
+	om.reviveObject(o)
+
+	obj.visible(true)
+	obj.active(true)
+
+	return obj
+end
+
+function om.duplicate(o)
+	return om.spawnObject(o)
+end
+
+---@param o Object
+---@param o2 Object
+function om.copy(o2, o)
+	o2.bhvscript(o.bhvscript())
+	o2.graphics(o.graphics())
+	o2.model(o.model())
+	o2.pos(o.pos())
+	o2.visible(o.visible())
+	o2.active(o.active())
+	return o2
 end
 
 return om
