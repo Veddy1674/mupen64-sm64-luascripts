@@ -18,7 +18,7 @@ end
 
 start()
 
-emu.atinput(function()
+emu.update(function()
     update()
 	--print("one frame has passed. (about 1/30 second)")
 end)
