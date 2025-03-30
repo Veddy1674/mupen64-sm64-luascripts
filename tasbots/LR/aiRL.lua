@@ -1,6 +1,4 @@
 local json = require("lib.json")
-local mathDist = require("lua.math.Distance")
-local mario = require("lua.mario.Mario")
 
 ---@class AIRLSettings
 ---@field alpha number
@@ -60,8 +58,7 @@ function ai.new(settings, actions, goalObj, stateFormula, tickRewardFormula, gen
         for name, _ in pairs(self.actions) do
             table.insert(actionNames, name)
         end
-
-        -- Seleziona un numero casuale di azioni (da 1 a #actionNames)
+        
         local numActions = math.random(1, #actionNames)
         local selectedActions = {}
 
@@ -126,9 +123,13 @@ function ai.new(settings, actions, goalObj, stateFormula, tickRewardFormula, gen
                 -- state should be distance
                 return self.stateFormula()
             elseif key == "trust" then
-                for actionName, _ in ipairs(self.actions) do
-                    return actionName .. " - " .. self.trust[self.state][actionName]
+                local result = {}
+                if self.trust[self.state] then
+                    for actionName, value in pairs(self.trust[self.state]) do
+                        table.insert(result, actionName .. " - " .. value)
+                    end
                 end
+                return table.concat(result, ", ")
             else
                 return rawget(tbl, key) or ai[key]
             end
@@ -149,33 +150,34 @@ function ai.new(settings, actions, goalObj, stateFormula, tickRewardFormula, gen
         end
 
         local chosenActions
-    if math.random() < self.settings.epsilon then
-        chosenActions = getRandomActions()
-    else
-        chosenActions = getBestActions()
-    end
-
-    -- run all selected actions
-    for _, actionName in ipairs(chosenActions) do
-        local actionFunc = self.actions[actionName]
-        if actionFunc then
-            actionFunc()
+        if math.random() < self.settings.epsilon then
+            chosenActions = getRandomActions()
+        else
+            chosenActions = getBestActions()
         end
-    end
 
-    -- save actions to history
-    local actionEntry = {
-        state = self.state,
-        actions = chosenActions
-    }
-    table.insert(self.actionHistory, actionEntry)
+        -- run all selected actions
+        for _, actionName in ipairs(chosenActions) do
+            local actionFunc = self.actions[actionName]
+            if actionFunc then
+                actionFunc()
+            end
+        end
 
-    -- mini-reward (usually related to distance)
-    local reward = self.tickRewardFormula()
-    updateActionTrust(actionEntry, reward)
-    self.totalTickReward = self.totalTickReward + reward
+        -- save actions to history
+        local actionEntry = {
+            state = self.state,
+            actions = chosenActions
+        }
+        table.insert(self.actionHistory, actionEntry)
 
-    self.settings.epsilon = math.max(0.01, self.settings.epsilon * self.settings.epsilonDecay)
+        -- mini-reward (usually related to distance)
+        local reward = self.tickRewardFormula()
+        updateActionTrust(actionEntry, reward)
+        self.totalTickReward = self.totalTickReward + reward
+
+        local decayFactor = self.trust[self.state] and 0.99 or 0.95
+        self.settings.epsilon = math.max(0.1, self.settings.epsilon * decayFactor)
     end
 
     function self.updateTrust(ticksTaken)

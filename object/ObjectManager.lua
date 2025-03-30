@@ -1,27 +1,43 @@
 -- ObjectManager.lua
 
--- objects with "memory order" in STROOP can be obtained by doing:
+-- memory order:
 -- first loaded object address + 0x260 = next object address
 
+local json = require("lib.json")
 local object = require("lua.object.Object")
-local olist = require("lua.object.ObjectList")
-local distance = require("lua.math.Distance")
 
+startAddress = 0x8033D488 -- first object
+importantAddressOffsets = {
+	0x08, -- Next Object,
+	0x04, -- Previous Object,
+	0x60, -- Next Processed Object Address
+	0x64, -- Previous Processed Object Address
+	0x68, -- Parent Object
+}
+
+---@class ObjectManager
+---@field getObjects fun(order?:string):Object[]
+---@field reorderObjects fun(objectList:Object[], order:"Memory"|"DistToMario"):Object[]
+---@field firstEmptyCell fun():Object
+---@field firstUnloadedCell fun():Object
+---@field copyInfo fun(obj:Object, obj2:Object):Object
+---@field duplicateObject fun(obj:Object, replaceSlot?:integer):Object
+---@field spawnObject fun(commonName:string,pos?:Vector3,speed?:Speed4):Object
 local om = {}
 
-local startAddress = 0x8033D488 -- first object
-
+---@param order "Memory"|"DistToMario"
 ---@return Object[]
 function om.getObjects(order)
     local objects = {}
 
 	-- max 240 objects can be loaded
-    for slotIndex = 1, 240 do
+    for slotIndex = 1, maxObjectSlots do
  		-- memory processing order
-        table.insert(objects, object.new(startAddress, slotIndex))
+		local address = startAddress + (slotIndex - 1) * 0x260
+        table.insert(objects, object.new(address, slotIndex))
     end
 
-	if order ~= nil and order ~= "memory" then
+	if order ~= nil and order ~= "Memory" then
 		om.reorderObjects(objects, order)
 	end
 	
@@ -30,65 +46,113 @@ function om.getObjects(order)
 	return objects
 end
 
+-- RETURNS new sorted list, does not modify objectList param
+---@param objectList? Object[]
+---@param order "Memory"|"DistToMario"
 function om.reorderObjects(objectList, order)
-	if order == "memory" then
+	objectList = objectList or om.getObjects()
+
+	if order == "Memory" then
 		return om.getObjects()
 
 	elseif order == "DistToMario" then
 
+		---@type Object|nil
+		local marioObj = table.compare(objectList, function(o) return o.isA("Mario") end)
+		if not marioObj then emu.stop("ObjectManager.lua: marioObj not found in objectList") end
+
         table.sort(objectList, function(o1, o2)
-            local dist1 = distance.marioTo(o1)
-            local dist2 = distance.marioTo(o2)
+			---@cast marioObj Object
+            local dist1 = o1.distanceFrom(marioObj)
+            local dist2 = o2.distanceFrom(marioObj)
             return dist1 < dist2
         end)
+		return objectList
     end
+	---@type Object[]
+	return nil
 end
 
-function om.findEmptyCell() -- returns first empty object
+-- returns first empty object
+function om.firstEmptyCell()
 	for _, obj in pairs(om.getObjects()) do
-		if obj.isEmpty() then
+		if obj.slotIndex <= safeSlotsLimit and obj.isEmpty() then
 			return obj
 		end
 	end
+	emu.stop("No empty slots " .. "(" .. safeSlotsLimit .. "/" .. maxObjectSlots .. " limited)")
+	---@type Object
+	return nil
 end
 
-function om.reviveObject(o)
-	o.setActive(true)
+-- returns first unloaded object
+function om.firstUnloadedCell()
+	for _, obj in pairs(om.getObjects()) do
+		if obj.slotIndex <= safeSlotsLimit and not obj.isLoaded() then
+			return obj
+		end
+	end
+	emu.stop("No empty slots " .. "(" .. safeSlotsLimit .. "/" .. maxObjectSlots .. " limited)")
+	---@type Object
+	return nil
 end
 
-function om.spawnObject(o)
-	local obj = om.findEmptyCell()
-	print(obj.slotIndex)
-	obj.clear()
+function om.copyInfo(obj, obj2)
+	obj2.clear()
 
-	obj.bhvscript(o.bhvscript())
-	obj.graphics(o.graphics())
-	obj.model(o.model())
+	-- every object stores 0x260 bytes
+	for offset = 0, 0x260-0x4, 0x4 do
+		if not table.any(importantAddressOffsets, function(o) return o == offset end) then
+			local value = memory.access(obj.base + offset, UINT)
+			memory.access(obj2.base + offset, UINT, value)
+		end
+	end
 
-	obj.pos(o.pos())
+	obj2.parent(obj2)
 
-	om.reviveObject(o)
-
-	obj.visible(true)
-	obj.active(true)
-
-	return obj
+	return obj2
 end
 
-function om.duplicate(o)
-	return om.spawnObject(o)
+function om.duplicateObject(obj, replaceSlot)
+	local copied = replaceSlot and om.getObjects()[replaceSlot] or om.firstUnloadedCell()
+
+	---@cast copied Object
+	copied = om.copyInfo(obj, copied)
+	copied.revive()
+
+	return copied
 end
 
----@param o Object
----@param o2 Object
-function om.copy(o2, o)
-	o2.bhvscript(o.bhvscript())
-	o2.graphics(o.graphics())
-	o2.model(o.model())
-	o2.pos(o.pos())
-	o2.visible(o.visible())
-	o2.active(o.active())
-	return o2
+---@param commonName "coin"|"toad"
+---@param pos? Vector3
+---@param speed? Speed4
+function om.spawnObject(commonName, pos, speed)
+	local saveFile = "lua/dev/objCommonValues/" .. commonName .. ".json"
+
+	local file = io.open(saveFile, "r")
+	if not file then emu.stop("file " .. saveFile .. " not found") end
+
+	---@cast file file*
+	local data = json.decode(file:read("*a"))
+	file:close()
+
+	local newObj = om.firstUnloadedCell()
+	newObj.clear()
+
+	for offset = 0, 0x260-0x4, 0x4 do
+		if not table.any(importantAddressOffsets, function(o) return o == offset end) then
+			local value = data[tostring(offset)]
+			memory.access(newObj.base + offset, UINT, value)
+		end
+	end
+
+	newObj.parent(newObj)
+
+	newObj.pos(pos or Vector3.new())
+    newObj.speed(speed or Speed4.new())
+
+	newObj.revive()
+	return newObj
 end
 
 return om

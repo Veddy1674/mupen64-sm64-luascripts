@@ -26,6 +26,11 @@ table.any = function(tbl, condition)
 	return table.compare(tbl, condition) ~= nil
 end
 
+---@param n number
+hex = function(n)
+    return string.format("0x%X", n)
+end
+
 -- property:
 
 local property = {}

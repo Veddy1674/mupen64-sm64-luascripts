@@ -71,3 +71,8 @@ end
 function Vector3.__sub(a, b)
     return Vector3.new(a.x - b.x, a.y - b.y, a.z - b.z)
 end
+
+-- vector3-number
+function Vector3.__mul(a, b)
+    return Vector3.new(a.x * b, a.y * b, a.z * b)
+end

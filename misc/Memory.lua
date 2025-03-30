@@ -25,41 +25,22 @@ function Memory.new()
     self.access = function(address, vartype, value)
         ---@diagnostic disable: need-check-nil, undefined-field
         
-        if (vartype == FLOAT) then
+        local operations = {
+            [FLOAT] = {write = _memory.writefloat, read = _memory.readfloat},
+            [UINT] = {write = _memory.writedword, read = _memory.readdword},
+            [INT] = {write = _memory.writedword, read = _memory.readdwordsigned},
+            [BYTE] = {write = _memory.writebyte, read = _memory.readbyte},
+            [SBYTE] = {write = _memory.writebyte, read = _memory.readbytesigned},
+            [SHORT] = {write = _memory.writeword, read = _memory.readwordsigned},
+            [USHORT] = {write = _memory.writeword, read = _memory.readword}
+        }
+    
+        local operation = operations[vartype]
+        if operation then
             if value then
-                _memory.writefloat(address, value)
+                operation.write(address, value)
             end
-            return _memory.readfloat(address)
-        elseif (vartype == UINT) then
-            if value then
-                _memory.writedword(address, value)
-            end
-            return _memory.readdword(address)
-        elseif (vartype == INT) then
-            if value then
-                _memory.writedword(address, value)
-            end
-            return _memory.readdwordsigned(address)
-        elseif (vartype == BYTE) then
-            if value then
-                _memory.writebyte(address, value)
-            end
-            return _memory.readbyte(address)
-        elseif (vartype == SBYTE) then
-            if value then
-                _memory.writebyte(address, value)
-            end
-            return _memory.readbytesigned(address)
-        elseif (vartype == SHORT) then
-            if value then
-                _memory.writeword(address, value)
-            end
-            return _memory.readwordsigned(address)
-        elseif (vartype == USHORT) then
-            if value then
-                _memory.writeword(address, value)
-            end
-            return _memory.readword(address)
+            return operation.read(address)
         end
     
         -- type invalid

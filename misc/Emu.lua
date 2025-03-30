@@ -1,5 +1,6 @@
 -- not a module
 
+---@private
 local stop = function(reason)
     error(reason or "\"emu.stop()\" invoked.")
 end
@@ -16,7 +17,7 @@ function Emu.new()
     ---@class Emu
     ---@field start fun(callback: fun())
     ---@field update fun(callback: fun())
-    ---@field stop fun()
+    ---@field stop fun(reason?:string)
     ---@field stopped fun(callback: fun())
     ---@field setSpeed fun(speed: number)
     ---@field getSpeed fun(): number
@@ -33,9 +34,9 @@ function Emu.new()
     end
 
     -- Stops script execution (instantly)
-    function self.stop()
+    function self.stop(reason)
         ---@diagnostic disable-next-line: need-check-nil, undefined-field
-        stop()
+        stop(reason)
     end
 
     -- Calls the callback when the emulator is stopped
