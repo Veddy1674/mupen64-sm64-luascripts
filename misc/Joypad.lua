@@ -32,6 +32,7 @@ function Joypad.new()
     ---@field set fun(inputs: Inputs)
     ---@field setOpposite fun(): Inputs
     ---@field add fun(inputs: Inputs)
+    ---@field contains fun(input: string): boolean
     ---@field left Inputs
     ---@field right Inputs
     ---@field down Inputs
@@ -54,6 +55,12 @@ function Joypad.new()
         return _joypad.get()
     end
 
+    function self.setOppositeDirection()
+        local inputs = self.get()
+        self.add({ X = -inputs.X, Y = -inputs.Y })
+        return self
+    end
+
     function self.add(inputs)
         local saved = self.get()
 
@@ -66,10 +73,9 @@ function Joypad.new()
         self.set(newInputs)
     end
 
-    function self.setOppositeDirection()
+    function self.contains(input)
         local inputs = self.get()
-        self.add({ X = -inputs.X, Y = -inputs.Y })
-        return self
+        return inputs[input] ~= nil and inputs[input] == true
     end
 
     return self

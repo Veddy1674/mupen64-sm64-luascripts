@@ -10,6 +10,7 @@
 ---@field equals fun(other:Vector3):boolean
 ---@field set fun(arg:string, val:number):Vector3
 ---@field distance fun(other:Vector3):number
+---@field normalize fun():Vector3
 Vector3 = {}
 Vector3.__index = Vector3
 
@@ -51,6 +52,14 @@ function Vector3.new(x, y, z)
 
     function self.distance(other)
         return math.sqrt((self.x - other.x)^2 + (self.y - other.y)^2 + (self.z - other.z)^2)
+    end
+
+    function self.normalize()
+        local length = self.distance(Vector3.new())
+        if length > 0 then
+            return Vector3.new(self.x / length, self.y / length, self.z / length)
+        end
+        return Vector3.new()
     end
     
     return self

@@ -22,6 +22,8 @@ function Object.new(address, slotIndex)
     ---@field bhvscript fun(v?:integer):integer -- todo: change type
     ---@field overlapsWith fun(obj2:Object):boolean
     ---@field distanceFrom fun(obj2:Object):number
+    ---@field distanceXYZFrom fun(obj2:Object):Vector3
+    ---@field distanceXZFrom fun(obj2:Object):Vector3
     ---@field equals fun(other:Object):boolean
     ---@field name fun():string
     ---@field group fun():string
@@ -92,10 +94,27 @@ function Object.new(address, slotIndex)
         return dxz < radiusSum and heightOverlap
     end
 
+    -- Returns distance between obj and arg1 as a number
     ---@param o2 Object
+    ---@return number
     obj.distanceFrom = function(o2)
         return obj.pos().distance(o2.pos())
     end
+    -- Returns distance between obj and arg1 as a Vector3
+    ---@param o2 Object
+    ---@return Vector3
+    obj.distanceXYZFrom = function(o2)
+        return obj.pos() - o2.pos()
+    end
+    -- Returns distance between obj and arg1 ignoring Y axis
+    ---@param o2 Object
+    ---@return Vector3
+    obj.distanceXZFrom = function(o2)
+        local p1 = obj.pos().set("y", 0)
+        local p2 = o2.pos().set("y", 0)
+        return p1 - p2
+    end
+
 
     -- Compares object by behavior script
     obj.equals = function(o2) return obj.bhvscript() == o2.bhvscript() end
