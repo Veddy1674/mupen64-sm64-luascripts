@@ -1,95 +1,62 @@
-require("lua.misc.Utils")
+-- AIState.lua
 
----@alias ActionMap table<string, Inputs>
+require("lua.misc.Utils")
+require("lib.aiutils")
 
 ---@class AIState
----@field identifier string
----@field startEpsilon number
+---@field identifier string -- e.g [10,0,10,15] being mario's position and h speed
+---@field epsilon number -- each state gets optimized on its own
 ---@field aiSettings AIRLSettings
 ---@field trust table<string, number>
----@field getBestActionName fun(conditionFunc?:fun(actionName:string):boolean):string -- actionName
----@field updateTrustFor fun(actionName:string, reward:number)
+---@field reward fun(action:string, reward:number)
+---@field getBestAction fun():string
 ---@field info fun()
 local AIState = {}
 AIState.__index = AIState
 
 ---@param identifier string
----@param actions ActionMap -- temp
+---@param actions string[] -- temp
 ---@param aiSettings AIRLSettings
 ---@return AIState
 function AIState.new(identifier, actions, aiSettings)
     local self = setmetatable({}, AIState)
     self.identifier = identifier
     self.aiSettings = aiSettings
-    self.startEpsilon = self.aiSettings.base_epsilon -- saved because of save/load system
-    -- each state gets optimized on its own
+    self.epsilon = self.aiSettings.base_epsilon
 
     self.trust = {}
     -- init trust
-    for actionName, _ in pairs(actions) do
-        self.trust[actionName] = 0
-    end
-    
-    -- Only returns one best action
-    self.getBestActionName = function(conditionFunc)
-        if self.aiSettings.base_epsilon > emu.rand() then
-            -- random action
-            if conditionFunc == nil then return table.random(self.trust) end
-
-            local randAction = nil
-            repeat
-                randAction = table.random(self.trust) -- could forever loop!
-            until conditionFunc(randAction)
-            return randAction
-        end
-        -- best action
-        ---@type table<string, number>
-        local sortedActions = {} -- sorted by trust descending: e.g { ["A"] = 10, ["B"] = 5 }
-        -- copying trust into sortedActions:
-        for actionName, trust in pairs(self.trust) do
-            table.insert(sortedActions, {action = actionName, trust = trust})
-        end
-        table.sort(sortedActions, function(a, b) return a.trust > b.trust end)
-        
-        if conditionFunc == nil then return sortedActions[1] end
-
-        local bestActionName = nil
-        for i = 1, #sortedActions do
-            bestActionName = sortedActions[i].action
-            if conditionFunc(bestActionName) then
-                return bestActionName
-            end
-        end
-        emu.stop("No action found (Everything got excluded)")
-        ---@type string
-        return nil
+    for _, action in pairs(actions) do
+        self.trust[action] = 0--math.randomforcefloat(-0.1, 0.1)
     end
 
     -- Updates trust for a specific action with a specific reward
-    self.updateTrustFor = function(actionName, reward)
-        -- Every action is initialized in trust {}, so self.trust[actionName] always exists if actions arg contains actionName
-        self.trust[actionName] = self.trust[actionName] + self.aiSettings.alpha * (
-            reward + self.aiSettings.gamma * 0 - self.trust[actionName]
-        )
+    self.reward = function(action, reward)
+        self.trust[action] = self.trust[action]
+            + (self.aiSettings.alpha) * (reward - self.trust[action])
 
-        -- epsilon multiplier can be like:
-        -- x 1.01 makes 0.99 become 0.9999
-        -- x 1.004 makes 0.99 become 0.99396 (~3frames)
-        -- x 1.007 makes 0.99 become 0.99693 (first state's epsilon in ~27th generation: 0.62)
-        self.aiSettings.base_epsilon =
-            math.max(0.1, self.aiSettings.base_epsilon * self.aiSettings.epsilonDecay * 1.0099)
+        
+        self.epsilon =
+            math.max(0.1, self.epsilon * self.aiSettings.epsilonDecay * 1.0099)
     end
 
-    -- Prints info about state's epsilon and trust
-    self.info = function()
-        print("State: [" .. self.identifier .. "]")
-        print(string.format("Epsilon: %.2f / %.2f (%.2f decay)", self.aiSettings.base_epsilon, self.startEpsilon, self.aiSettings.epsilonDecay))
-        print("Trust = {")
-        for actionName, trust in pairs(self.trust) do
-            print("    " .. actionName .. ": " .. trust)
+    self.getBestAction = function()
+        if math.random() < self.epsilon then
+            return table.randomKey(self.trust)
         end
-        print("}")
-        print()
+        return tostring(argmax(self.trust))
+    end
+
+    self.info = function()
+        printf("State: [" .. self.identifier .. "]")
+        printf("Epsilon: %.2f / %.2f (%.2f decay)",
+            self.aiSettings.base_epsilon, self.epsilon, self.aiSettings.epsilonDecay
+        )
+        printf("Trust = {\n")
+        for action, trust in pairs(self.trust) do
+            printf("    " .. action .. ": " .. trust .. "\n")
+        end
+        printf("}\n")
     end
 
     return self

@@ -62,20 +62,7 @@ function Emu.new()
     -- Returns the frames count (emulator itself, not game)
     function self.frames()
         ---@diagnostic disable-next-line: need-check-nil, undefined-field
-        return _emu.framecount()
-    end
-
-    local randId = 1 -- Used to generate different seeds when emu.rand() is called more than once in a frame
-    -- Returns a customized random number
-    function self.rand(min, max, ...)
-        local sum = 0
-        for _, v in ipairs({...}) do
-            sum = sum + v
-        end
-        math.randomseed(((self.frames() + 10) + os.time() * 7) + randId + sum)
-        randId = randId + 1
-        return min ~= nil and max ~= nil and
-            math.random(min, max) or math.random()
+        return _emu.framecount() -- samplecount?
     end
     
     return self

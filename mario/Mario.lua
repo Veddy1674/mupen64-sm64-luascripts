@@ -43,8 +43,7 @@ end
 ---@return Inputs -- returns the input values needed to move towards the goal
 mario.getFollowInputs = function(marioObj, goalObj, maxSpeed)
     local yaw = camera.yawRad()
-    local distance = marioObj.distanceXZFrom(goalObj)
-    local absDirection = distance.normalize()
+    local absDirection = marioObj.distanceXZFrom(goalObj).normalize()
     
     -- convert absolute direction to camera-relative direction
 	local relX, relZ =
@@ -53,7 +52,22 @@ mario.getFollowInputs = function(marioObj, goalObj, maxSpeed)
 	
     return maxSpeed
 		and { X = relX * 127 // 1, Y = relZ * -127 // 1 }
-		or	{ X = relX, Y = relZ }
+		or	{ X = relX // 1 , Y = relZ // 1}
+end
+
+---@param inputs Inputs
+---@return Inputs
+mario.getAbsoluteInputs = function(inputs)
+	if not inputs.X or not inputs.Y then emu.stop("Invalid inputs (X or Y not found in mario.getAbsoluteInputs())") end
+	
+	local yaw = camera.yawRad()
+    local absDirection = Vector3.new(inputs.X, 0, inputs.Y).normalize()
+
+	local relX, relZ =
+		absDirection.x * math.cos(yaw) - absDirection.z * math.sin(yaw),
+		absDirection.x * math.sin(yaw) + absDirection.z * math.cos(yaw)
+	
+    return { X = relX * 127 // 1, Y = relZ * -127 // 1 }
 end
 
 ---@alias MarioAction number
@@ -87,6 +101,12 @@ marioAction = {
 	punching = 0x00800457,
 	groundpounding = 0x008008A9,
 	groundpoundland = 0x0080023C,
+	facingwall = 0x0C400209,
+	special = {
+		isWalking = function() return mario.isAction(marioAction.walking) and mario.getActionPhase() == 0 end,
+		isPushingWall = function() return mario.isAction(marioAction.walking) and mario.getActionPhase() == 1 end,
+	},
+		
 }
 
 ---@return MarioAction (hexadecimal)
@@ -116,6 +136,64 @@ mario.isActionAny = function(actions)
 		end
 	end
 	return false
+end
+
+---@return number
+mario.getActionPhase = function()
+	return memory.access(mario.base + 0x18, SHORT)
+end
+
+mario.setActionPhase = function(phase)
+	return memory.access(mario.base + 0x18, SHORT, phase)
+end
+
+---@class Triangle
+---@field base number
+---@field exists fun():boolean
+
+mario.getFloorTriangle = function()
+	local triangle = {}
+
+	triangle.base = mario.base + 0x68
+	triangle.exists = function() return memory.access(triangle.base, SHORT) ~= 0x0 end
+
+	return triangle
+end
+
+mario.getWallTriangle = function()
+	local triangle = {}
+
+	triangle.base = mario.base + 0x60
+	triangle.exists = function() return memory.access(triangle.base, SHORT) ~= 0x0 end
+	
+	return triangle
+end
+
+mario.getCeilingTriangle = function()
+	local triangle = {}
+
+	triangle.base = mario.base + 0x64
+	triangle.exists = function() return memory.access(triangle.base, SHORT) ~= 0x0 end
+	
+	return triangle
+end
+
+mario.coinInfo = function()
+	local cf = {}
+
+	cf.count = function() return memory.access(mario.base + 0xA8, SHORT) end
+	cf.display = function() return memory.access(mario.base + 0xF2, SHORT) end
+
+	return cf
+end
+
+mario.yawInfo = function()
+	local yi = {}
+
+	yi.facing = function() return memory.access(mario.base + 0x2E, USHORT) end
+	yi.intended = function() return memory.access(mario.base + 0x24, USHORT) end
+
+	return yi
 end
 
 --[[

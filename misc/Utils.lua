@@ -28,21 +28,46 @@ table.any = function(tbl, condition)
 end
 
 ---@param tbl table<any, any>
-table.random = function(tbl)
-	local count = 0
-    for k in pairs(tbl) do
-        if type(k) ~= "number" then
-            -- non-indexed table (uses pairs)
-			local keys = {}
-			for k,_ in pairs(tbl) do
-				table.insert(keys, k)
-			end
-			return keys[emu.rand(1, #keys)]
+---@return any[]
+function table.keys(tbl)
+    -- if it's already indexed just return tbl, else return indexed table
+    -- (might not 100% work)
+    if #tbl > 0 then
+        return tbl
+    else
+        local values = {}
+        for _, v in pairs(tbl) do
+            table.insert(values, v)
         end
-        count = count + 1
+        return values
     end
-	-- indexed table (uses ipairs)
-	return tbl[emu.rand(1, #tbl)]
+end
+
+---@param tbl table<any, any>
+---@return any
+table.random = function(tbl)
+	local keys = table.keys(tbl)
+    return keys[math.random(1, #keys)]
+end
+
+table.randomKey = function(tbl) -- for non-indexed only
+    local randomIndex = math.random(1, #table.keys(tbl))
+
+    local i = 1
+    for key, _ in pairs(tbl) do
+        if i == randomIndex then return key end
+        i = i + 1
+    end
+end
+
+table.randomValue = function(tbl) -- for non-indexed only
+    local randomIndex = math.random(1, #table.keys(tbl))
+
+    local i = 1
+    for _, val in pairs(tbl) do
+        if i == randomIndex then return val end
+        i = i + 1
+    end
 end
 
 ---@param tbl table<any, any>
@@ -66,6 +91,50 @@ end
 ---@param n number
 hex = function(n)
     return string.format("0x%X", n)
+end
+
+---@param a number
+---@param b number
+function math.randomforcefloat(a, b)
+    return a + (b - a) * math.random()
+end
+
+---@param x? number
+---@return number
+math.hyperbolicTangent = function(x) -- math.tanh is deprecated
+    if x == nil then return 0 end
+    if x == 0 then return 0 end
+    local e = math.exp(2 * x)
+    return (e - 1) / (e + 1)
+end
+
+string.split = function(str, sep)
+    local result = {}
+    for part in str:gmatch("([^"..sep.."]+)") do
+        table.insert(result, part)
+    end
+    return result
+end
+
+printf = function(fmt, ...)
+    local args = {...}
+
+    for i, arg in ipairs(args) do
+        if arg == math.huge or  arg == -math.huge then
+            args[i] = -1 -- when a variable is formatted as %d or %f but has value math.huge, it becomes a string
+        end
+    end
+
+    local formatted = string.format(fmt, table.unpack(args))
+    
+    if formatted:find("\n") then
+        for _, line in ipairs(formatted:split("\n")) do
+            print(line)
+            print()
+        end
+    else
+        print(formatted)
+    end
 end
 
 -- property:
