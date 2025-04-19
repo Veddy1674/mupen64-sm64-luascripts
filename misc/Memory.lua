@@ -22,6 +22,10 @@ function Memory.new()
     ---@field access fun(address: number, vartype: "FLOAT"|"UINT"|"INT"|"BYTE"|"SBYTE"|"SHORT"|"USHORT", value?: number): number
     local self = setmetatable({}, Memory)
 
+    ---@param address number
+    ---@param vartype "FLOAT"|"UINT"|"INT"|"BYTE"|"SBYTE"|"SHORT"|"USHORT"
+    ---@param value? number
+    ---@return number
     self.access = function(address, vartype, value)
         ---@diagnostic disable: need-check-nil, undefined-field
         
@@ -47,6 +51,24 @@ function Memory.new()
         stop("Invalid memory type \"" .. vartype .. "\". " .. "(" .. (value and "write" or "read") .. ")")
         ---@type number
         return nil
+        ---@diagnostic enable: need-check-nil, undefined-field
+    end
+
+    ---@param address number
+    ---@param mask number
+    ---@param value? boolean
+    ---@return boolean
+    self.accessWithMask = function(address, mask, value)
+        ---@diagnostic disable: need-check-nil, undefined-field
+        
+        local v = _memory.readbyte(address)
+        if value ~= nil then
+            v = v | mask
+            _memory.writebyte(address, v)
+        end
+        
+        return (v & mask) == mask
+        
         ---@diagnostic enable: need-check-nil, undefined-field
     end
 

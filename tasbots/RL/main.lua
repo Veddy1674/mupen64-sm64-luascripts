@@ -21,15 +21,7 @@ local actionNames = {
 }
 ---@param a string
 local function getActionFromName(a)
-    if a == "Left" then return joypad.left end
-    if a == "Right" then return joypad.right end
-    if a == "Up" then return joypad.up end
-    if a == "Down" then return joypad.down end
-    if a == "UpLeft" then return joypad.upleft end
-    if a == "UpRight" then return joypad.upright end
-    if a == "DownLeft" then return joypad.downleft end
-    if a == "DownRight" then return joypad.downright end
-    emu.stop("Invalid action name: " .. a)
+    return joypad[a:lower()]
 end
 
 local function doingBadAction()
@@ -51,6 +43,7 @@ local function rewardFormula(prevAction)
     local prize = marioObj.overlapsWith(coin) and 2 or 0
     local badActionsPenalty = doingBadAction() and -2 or 0
     
+    -- print(distance + speed + prize + badActionsPenalty)
     return distance + speed + prize + badActionsPenalty
 end
 
@@ -61,9 +54,8 @@ local ai = aiFactory.new({
 }, actionNames,
     function()
         -- # State formula
-        local dx, _, dz = marioObj.distanceXYZFrom(coin).tuple()
-        local hSpeed = mario.speed().h
-        return string.format("%d,%d", dx//40, dz//40,hSpeed//3)
+        local x, _, z = mario.pos().tuple()
+        return string.format("%d,%d", x//500, z//500)
     end, dataPath
 )
 ai.loadData()
@@ -74,6 +66,7 @@ local function reset()
 end
 
 local function start()
+    _emu.set_ff(true)
     savestate.savefile(savePath)
 end
 
@@ -85,19 +78,20 @@ csvFile:close()
 csvFile = io.open(csvPath, "a")
 ---@cast csvFile file*
 
-local prevState = nil
-local prevAction = nil -- rewards are given one frame after the action is performed
+local history = {}
+local delayedFrames = 4
 
 local function update()
 
-    if prevAction and prevState then
+    if #history > delayedFrames then
 
-        local reward = rewardFormula(prevAction)
-        ai.rewardPrevious(prevState, prevAction, reward)
+        local old = table.remove(history, 1)
+        local reward = rewardFormula(old.ACTION)
+        ai.rewardPrevious(old.STATE, old.ACTION, reward)
 
-        if joypad.contains("up") then
-            printf("Rewarded previous with %.3f (trust: %.3f)\n", reward, prevState.trust[prevAction])
-        end
+        -- if joypad.contains("up") then
+        --     printf("Rewarded previous with %.3f (trust: %.3f)\n", reward, prevState.trust[prevAction])
+        -- end
 
         local failed = doingBadAction()
         if marioObj.overlapsWith(coin) or failed then
@@ -107,18 +101,18 @@ local function update()
             ai.nextEpisode(not failed, true)
             reset()
 
-            prevState = nil
-            prevAction = nil
+            history = {}
             return -- !
         end
-    end -- no prev action (begin of episode)
-    
-    prevState, prevAction = ai.getTickAction()
-    joypad.set(getActionFromName(prevAction))
-
-    if joypad.contains("up") then
-        printf("Perfomed action: %s in [%s] (prev trust: %.3f, epsilon: %.3f)", prevAction, prevState.identifier, prevState.trust[prevAction], prevState.epsilon)
     end
+
+    local state, action = ai.getTickAction()
+    table.insert(history, {STATE = state, ACTION = action})
+    joypad.set(getActionFromName(action))
+
+    -- if joypad.contains("up") then
+    --     printf("Perfomed action: %s in [%s] (prev trust: %.3f, epsilon: %.3f)", prevAction, prevState.identifier, prevState.trust[prevAction], prevState.epsilon)
+    -- end
 end
 
 emu.start(start)

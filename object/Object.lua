@@ -1,7 +1,7 @@
 -- Object.lua
 
 local olist = require("lua.object.ObjectList")
-require("misc.Utils")
+require("lua.misc.Utils")
 
 maxObjectSlots = 240
 safeSlotsLimit = maxObjectSlots - 25
@@ -29,9 +29,6 @@ function Object.new(address, slotIndex)
     ---@field group fun():string
     ---@field isA fun(other:string):boolean
     ---@field isGroupOf fun(other:string):boolean
-    ---@field facecamera fun(v?:boolean):boolean
-    ---@field visible fun(v?:boolean):boolean
-    ---@field active fun(v?:boolean):boolean
     ---@field load fun()
     ---@field revive fun()
     ---@field parent fun(o:Object):number
@@ -72,11 +69,54 @@ function Object.new(address, slotIndex)
     obj.graphics = function(v)
         return memory.access(obj.base + 0x14, UINT, v)
     end
+    obj.graphInfo = function(a)
+        local info = {}
+        
+        info.timer = function(v) return memory.access(obj.base + 0xF0, INT, v) end
+        info.action = function(v) return memory.access(obj.base + 0x14C, UINT, v) end
+        info.subtype = function(v) return memory.access(obj.base + 0x144, UINT, v) end
+        info.facecamera = function(v) return memory.accessWithMask(obj.base + 0x3, 0x04, v) end
+        info.visible = function(v) return memory.accessWithMask(obj.base + 0x3, 0x10, v) end
+        info.active = function(v) return memory.accessWithMask(obj.base + 0x3, 0x01, v) end
+        info.tangible = function(v) return memory.access(obj.base + 0x9C, INT, v) end
+        
+        if a ~= nil then
+            info.timer(a.timer())
+            info.action(a.action())
+            info.subtype(a.subtype())
+            info.facecamera(a.facecamera())
+            info.visible(a.visible())
+            info.active(a.active())
+        end
+
+        return info
+    end
+    obj.animation = function(v)
+        return memory.access(obj.base + 0x3C, UINT, v)
+    end
+    obj.animInfo = function(a)
+        local info = {}
+
+        info.frame = function(v) return memory.access(obj.base + 0x40, SHORT, v) end
+        info.timer = function(v) return memory.access(obj.base + 0x42, SHORT, v) end
+        info.speed = function(v) return memory.access(obj.base + 0x48, FLOAT, v) end
+    
+        if a ~= nil then
+            info.frame(a.frame())
+            info.timer(a.timer())
+            info.speed(a.speed())
+        end
+
+        return info
+    end
     obj.model = function(v)
         return memory.access(obj.base + 0x218, UINT, v)
     end
     obj.bhvscript = function(v)
         return memory.access(obj.base + 0x20C, UINT, v)
+    end
+    obj.timer = function(v)
+        return memory.access(obj.base + 0x154, INT, v)
     end
 
     ---@param obj2 Object

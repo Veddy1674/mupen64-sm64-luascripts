@@ -156,6 +156,8 @@ mario.getFloorTriangle = function()
 
 	triangle.base = mario.base + 0x68
 	triangle.exists = function() return memory.access(triangle.base, SHORT) ~= 0x0 end
+	triangle.height = function() return memory.access(mario.base + 0x70, FLOAT) end
+	triangle.distToMario = function() return math.abs(mario.pos().y - triangle.height()) end
 
 	return triangle
 end
@@ -174,6 +176,7 @@ mario.getCeilingTriangle = function()
 
 	triangle.base = mario.base + 0x64
 	triangle.exists = function() return memory.access(triangle.base, SHORT) ~= 0x0 end
+	triangle.height = function() return memory.access(mario.base + 0x6C, FLOAT) end
 	
 	return triangle
 end
@@ -194,6 +197,33 @@ mario.yawInfo = function()
 	yi.intended = function() return memory.access(mario.base + 0x24, USHORT) end
 
 	return yi
+end
+
+mario.objInfo = function(obj, v)
+	local ai = {}
+
+	obj = obj or mario.getObj()
+	ai.animation = function(v) return memory.access(obj.base + 0x38, SHORT, v) end
+	ai.animTimer = function(v) return memory.access(obj.base + 0x40, SHORT, v) end
+	ai.walkTimer = function(v) return memory.access(obj.base + 0x44, SHORT, v) end
+	ai.burnTimer = function(v) return memory.access(obj.base + 0x110, INT, v) end
+	ai.cannonYaw = function(v) return memory.access(obj.base + 0x112, USHORT, v) end
+	ai.graphX = function(v) return memory.access(obj.base + 0x20, FLOAT, v) end
+	ai.graphY = function(v) return memory.access(obj.base + 0x24, FLOAT, v) end
+	ai.graphZ = function(v) return memory.access(obj.base + 0x28, FLOAT, v) end
+
+	if v ~= nil then
+		memory.access(v.base + 0x38, SHORT, ai.animation())
+		memory.access(v.base + 0x40, SHORT, ai.animTimer())
+		memory.access(v.base + 0x44, SHORT, ai.walkTimer())
+		memory.access(v.base + 0x110, INT, ai.burnTimer())
+		memory.access(v.base + 0x112, USHORT, ai.cannonYaw())
+		memory.access(v.base + 0x20, FLOAT, ai.graphX())
+		memory.access(v.base + 0x24, FLOAT, ai.graphY())
+		memory.access(v.base + 0x28, FLOAT, ai.graphZ())
+	end
+
+	return ai
 end
 
 --[[

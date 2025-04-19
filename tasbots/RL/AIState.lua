@@ -34,8 +34,7 @@ function AIState.new(identifier, actions, aiSettings)
     self.reward = function(action, reward)
         self.trust[action] = self.trust[action]
             + (self.aiSettings.alpha) * (reward - self.trust[action])
-
-        
+            
         self.epsilon =
             math.max(0.1, self.epsilon * self.aiSettings.epsilonDecay * 1.0099)
     end

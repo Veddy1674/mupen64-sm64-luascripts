@@ -15,6 +15,20 @@ end
 
 ---@param t table
 ---@return number
+function argmaxi(t)
+    local max = -math.huge
+    local index = 1
+    for i, v in ipairs(t) do
+        if v > max then
+            max = v
+            index = i
+        end
+    end
+    return index
+end
+
+---@param t table
+---@return number
 function valmax(t)
     local maxValue = next(t) and select(2, next(t)) or error("Table is empty!")
     for _, value in pairs(t) do
@@ -56,3 +70,11 @@ function tanh(x) return math.hyperbolicTangent(x) end
 ---@param y number
 ---@return number
 function dtanh(y) return 1 - y * y end
+
+---@param x number
+---@param min number
+---@param max number
+---@return number
+function clamp(x, min, max)
+    return math.min(math.max(x, min), max)
+end

@@ -12,46 +12,28 @@ local marioObj = mario.getObj()
 ---@cast marioObj Object
 local coin = om.getObjects()[44]
 
----@type string[]
-local actionNames = {
-    "Left",
-    "Right",
-    "Up", "UpLeft", "UpRight",
-    "Down", "DownLeft", "DownRight",
-}
----@param a string
----@param abs boolean
-local function getActionFromName(a, abs)
-    local function f(i)
-        return abs and mario.getAbsoluteInputs(i) or i
-    end
-    if a == "Left" then return f(joypad.left) end
-    if a == "Right" then return f(joypad.right) end
-    if a == "Up" then return f(joypad.up) end
-    if a == "Down" then return f(joypad.down) end
-    if a == "UpLeft" then return f(joypad.upleft) end
-    if a == "UpRight" then return f(joypad.upright) end
-    if a == "DownLeft" then return f(joypad.downleft) end
-    if a == "DownRight" then return f(joypad.downright) end
-    emu.stop("Invalid action name: " .. a)
-end
-
 -- creating ai
 local function inputsFormula()
-    local dist = marioObj.distanceFrom(coin) / 1000
+    local mx, _, mz = mario.pos().tuple()
+    local cx, _, cz = coin.pos().tuple()
+    local dx = (cx - mx) / 2200
+    local dz = (cz - mz) / 2200
     local speedInfo = mario.speed()
-    local dirX, _, dirZ = marioObj.distanceXZFrom(coin).normalize().tuple()
+    -- local floor = mario.getFloorTriangle()
 
     return {
-        dirX, dirZ,
+        mx / 2200, mz / 2200,
+        dx, dz,
         speedInfo.x / 30, speedInfo.y / 30,
         mario.yawInfo().facing() / 65535,
         camera.yaw() / 65535,
+        -- mario.getAction() / 0xFFFF,
+        -- floor.distToMario() / floor.height(),
     }
 end
--- print(inputsFormula())
 
-local ai = aiFactory.new(inputsFormula, 24, actionNames, 0.9998, 0.05, 0.001, "tanh")
+local epsilonDecay, epsilonMin, learningRate = 0.99989, 0.05, 0.001
+local ai = aiFactory.new(inputsFormula, 16, 4, epsilonDecay, epsilonMin, learningRate, "tanh", 4)
 
 local function doingBadAction()
     return marioObj.distanceFrom(coin) > 1600 or
@@ -59,84 +41,112 @@ local function doingBadAction()
 end
 
 local prevDist = nil
+local startingDist = nil
 local function rewardFormula(prevAction)
-    -- # Per tick reward
     local currDist = marioObj.distanceFrom(coin)
-    local distance = ((prevDist or currDist) - currDist) / 3000
+    startingDist = startingDist or currDist
+    local delta = (prevDist or currDist) - currDist
     prevDist = currDist
 
-    local prize = marioObj.overlapsWith(coin) and 8 or 0
-    local bad = doingBadAction() and -1.5 or 0
-    
-    return distance + prize + bad - 0.0001
+    local distanceReward = delta / startingDist -- normalizzato
+    local prize = marioObj.overlapsWith(coin) and 10 or 0
+    local bad = doingBadAction() and -1 or 0
+
+    return distanceReward + prize + bad
+end
+
+local function outputsToAction(outputs)
+    -- 4 outputs (X, Y, A, B)
+    local x, y = outputs[1], outputs[2]--, outputs[3], outputs[4]
+    -- printf("%d,%d", x//1, y//1)
+    return {
+        X = (x )//1,
+        Y = (y )//1,
+        -- A = a > 0.5,
+        -- B = b > 0.5,
+    }
 end
 
 local function reset()
     joypad.set({})
     savestate.loadfile(savePath)
     prevDist = nil
+    startingDist = nil
 end
 
 local function start()
     savestate.savefile(savePath)
 end
 
-local csvFile = io.open(csvPath, "w")
----@cast csvFile file*
-csvFile:write("Episode,AvgReward,Epsilon\n")
-csvFile:flush()
-csvFile:close()
-csvFile = io.open(csvPath, "a")
----@cast csvFile file*
+-- local csvFile = io.open(csvPath, "w")
+-- ---@cast csvFile file*
+-- csvFile:write("Episode,AvgReward,Epsilon\n")
+-- csvFile:flush()
+-- csvFile:close()
+-- csvFile = io.open(csvPath, "a")
+-- ---@cast csvFile file*
 
 local function avg(t)
     local s = 0 for _, v in ipairs(t) do s = s + v end
     return s / #t
 end
 
-local prevAction = nil -- rewards are given one frame after the action is performed
-local prevInputs = nil
----@cast prevInputs number[]
-
 local episode = 0
 local rewardOfThisEpisode = 0
 
+local delayFrames = 4
+local history = {} -- { inputs, outputs, reward }
+
 local function update()
 
-    if prevAction then
-
-        local reward = rewardFormula(prevAction)
+    if #history > delayFrames then
+        -- reward old action
+        local old = table.remove(history, 1)
+        local reward = rewardFormula(old.ACTION)
         local nextInputs = inputsFormula()
-        ai.giveReward(prevInputs, prevAction, reward, nextInputs)
+        ai.giveReward(old.STATE, old.ACTION, reward, nextInputs)
+
         rewardOfThisEpisode = rewardOfThisEpisode + reward
 
         if joypad.contains("up") then
-            printf("Rewarded previous action with %.3f\n", reward)
+            local outputs = outputsToAction(old.ACTION)
+            printf("Rewarded action ({X=%d, Y=%d}) %d frames ago with %.3f\n", outputs.X, outputs.Y, delayFrames, reward)
         end
 
         local failed = doingBadAction()
         if marioObj.overlapsWith(coin) or failed then
             episode = episode + 1
             -- logging files to .csv
-            csvFile:write(string.format("%d,%.3f,%.3f\n",
-                episode, rewardOfThisEpisode, ai.epsilon
-            ))
+            -- csvFile:write(string.format("%d,%.3f,%.3f\n",
+            --     episode, rewardOfThisEpisode, ai.epsilon
+            -- ))
 
             printf("Episode %d, total reward: %.3f (epsilon: %.3f)", episode, rewardOfThisEpisode, ai.epsilon)
             reset()
             rewardOfThisEpisode = 0
 
-            prevAction = nil
+            history = {}
             return -- !
         end
-    end -- no prev action (begin of episode)
+    end
     
-    prevInputs = inputsFormula()
-    prevAction = ai.getBestAction()
-    joypad.set(getActionFromName(prevAction, false))
+    local state = inputsFormula()
+    local action = ai.getBestAction()
+    table.insert(history, {STATE = state, ACTION = action})
+
+    joypad.set(outputsToAction(action))
 
     if joypad.contains("up") then
-        printf("Perfomed action: %s", prevAction)
+        local inputs = inputsFormula()
+        print("Inputs = {")
+        printf("    Mario Pos = {x=%.3f, z=%.3f}", inputs[1], inputs[2])
+        printf("    Distance = {x=%.3f, z=%.3f}", inputs[3], inputs[4])
+        printf("    Mario Speed = {x=%.3f, z=%.3f}", inputs[5], inputs[6])
+        printf("    Mario Yaw = %.3f", inputs[7])
+        printf("    Camera Yaw = %.3f", inputs[8])
+        print("}")
+        local outputs = outputsToAction(action)
+        printf("Outputs = {X=%d, Y=%d}", outputs.X, outputs.Y)
     end
 end
 
@@ -144,5 +154,5 @@ emu.start(start)
 emu.update(update)
 emu.stopped(function()
     reset()
-    csvFile:close()
+    -- csvFile:close()
 end)
