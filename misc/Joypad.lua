@@ -50,10 +50,10 @@ function Joypad.new()
     self.right = { X = 127, Y = 0 }
     self.down = { Y = -128, X = 0 }
     self.up = { Y = 127, X = 0 }
-    self.upleft = { X = -128, Y = 127 }
-    self.upright = { X = 127, Y = 127 }
-    self.downleft = { X = -128, Y = -127 }
-    self.downright = { X = 127, Y = -127 }
+    self.upleft = { X = -91, Y = 91 }
+    self.upright = { X = 91, Y = 91 }
+    self.downleft = { X = -91, Y = -91 }
+    self.downright = { X = 91, Y = -91 }
     self.none = {} -- everything is set to false
 
     function self.set(inputs)

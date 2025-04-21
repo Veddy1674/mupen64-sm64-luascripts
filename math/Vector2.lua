@@ -10,6 +10,7 @@
 ---@field set fun(arg:string, val:number):Vector2
 ---@field distance fun(other:Vector2):number
 ---@field normalize fun():Vector2
+---@field magnitude fun():number
 Vector2 = {}
 Vector2.__index = Vector2
 
@@ -54,6 +55,10 @@ function Vector2.new(x, y)
     function self.normalize()
         local length = math.sqrt(self.x^2 + self.y^2)
         return Vector2.new(self.x / length, self.y / length)
+    end
+
+    function self.magnitude()
+        return math.sqrt(self.x^2 + self.y^2)
     end
     
     return self

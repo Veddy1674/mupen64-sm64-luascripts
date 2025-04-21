@@ -1,4 +1,4 @@
--- main.lua
+-- save.lua
 
 require("lua.tasbots.InputBruteforce.shared")
 savestate.savefile(savestateFile)

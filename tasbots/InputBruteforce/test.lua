@@ -10,13 +10,13 @@ local coin = nil
 
 function init()
     marioObj = mario.getObj()
-    coin = om.getObjects()[52]
+    coin = om.getObjects()[114]
     ---@cast marioObj Object
 end
 init()
 
 function doingBadAction()
-    return marioObj.distanceFrom(coin) > 1700 or mario.isAction(marioAction.softbonk)
+    return marioObj.distanceFrom(coin) > 1830 or mario.isAction(marioAction.softbonk)
 end
 
 function doingGoodAction()

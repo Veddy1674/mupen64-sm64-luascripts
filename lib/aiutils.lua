@@ -1,7 +1,7 @@
 -- AIUtils.lua
 
 ---@param t table
----@return number
+---@return any
 function argmax(t)
     local maxKey, maxValue = next(t)
     for key, value in pairs(t) do
@@ -14,7 +14,7 @@ function argmax(t)
 end
 
 ---@param t table
----@return number
+---@return any
 function argmaxi(t)
     local max = -math.huge
     local index = 1

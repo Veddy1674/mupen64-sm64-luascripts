@@ -15,21 +15,51 @@ end
 
 -- main logic, meant to be changed
 
-local marioObj = nil
-local goal = nil
----@cast marioObj Object
----@cast goal Object
+---@type Object
+_marioObj = nil
+---@type Object
+_goalObj = nil
 
 function init()
-    marioObj = mario.getObj()
-    goal = om.getObjects()[52]
-    ---@cast marioObj Object
+    _marioObj = mario.getObj()
+    _goalObj = om.getObjects()[114]
 end
 
 function doingBadAction(frame)
-    return marioObj.distanceFrom(goal) > 1700 or mario.isAction(marioAction.softbonk) or frame > 150 -- 5 seconds
+    return _marioObj.distanceFrom(_goalObj) > 1830 or frame > 150 -- 5 seconds
+end
+
+function doingSlightlyBadAction(frame)
+    return (frame > 5 and mario.speed().h < 10) -- only bans the action made and without relatives
 end
 
 function doingGoodAction()
-    return marioObj.overlapsWith(goal)
+    return _marioObj.overlapsWith(_goalObj)
+end
+
+-- used for RL only
+---@param ai AIRL
+---@param state AIState
+---@param action string
+---@param totalReward number
+---@param doingBad boolean
+---@param doingGood boolean
+---@return number
+function reward(ai, state, action, totalReward, doingBad, doingGood) -- action of the frame before, not current!
+    if doingBad then return -10 end
+    if doingGood then return 10 end
+
+    local distReward = 1 - (_marioObj.distanceFrom(_goalObj) / 1830)
+    local actions = string.split(action, ",")
+    if actions[2] == "A" then
+        -- reward all actions that contain A
+        for _, dir in ipairs(_directions) do
+            ai.rewardPrevious(state, dir .. ",A", -1000000000000)
+            ai.rewardPrevious(state, dir, 100)
+        end
+        -- if state.trust["Left"] then printf("Trust of Left: %.2f", state.trust["Left"]) end
+        -- if state.trust["Left,A"] then printf("Trust of Left + A: %.2f", state.trust["Left,A"]) end
+    end
+    -- printf("[RWD] action = %s | reward = %.2f", action, n)
+    return distReward
 end

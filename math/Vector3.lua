@@ -11,6 +11,7 @@
 ---@field set fun(arg:string, val:number):Vector3
 ---@field distance fun(other:Vector3):number
 ---@field normalize fun():Vector3
+---@field magnitude fun():number
 Vector3 = {}
 Vector3.__index = Vector3
 
@@ -61,6 +62,10 @@ function Vector3.new(x, y, z)
         end
         return Vector3.new()
     end
+
+    function self.magnitude()
+        return math.sqrt(self.x^2 + self.y^2 + self.z^2)
+    end
     
     return self
 end
@@ -84,4 +89,9 @@ end
 -- vector3-number
 function Vector3.__mul(a, b)
     return Vector3.new(a.x * b, a.y * b, a.z * b)
+end
+
+-- also works vector3 // number
+function Vector3.__div(a, b)
+    return Vector3.new(a.x / b, a.y / b, a.z / b)
 end
