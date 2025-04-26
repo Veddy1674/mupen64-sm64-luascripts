@@ -11,6 +11,19 @@ end
 
 local bitmap = require("lua.lib.bitmap")
 
+---@class Emu
+---@field start fun(callback: fun())
+---@field update fun(callback: fun())
+---@field stop fun(reason?:string, setCrashed?: boolean)
+---@field stopped fun(callback: fun(crashed: boolean))
+---@field setSpeed fun(speed: number)
+---@field getSpeed fun(): number
+---@field frames fun(): number
+---@field pause fun(pause?: boolean)
+---@field isPaused fun(): boolean
+---@field saveScreenAsBmp fun(saveFilePath?: string): nil file*
+-----@field getGrayImageInfo fun(file: file*): nil number[], number, number
+---@field crashed boolean
 local Emu = {}
 Emu.__index = Emu
 
@@ -21,17 +34,6 @@ _emu = _G.emu
 ---@private
 ---@return Emu
 function Emu.new()
-    ---@class Emu
-    ---@field start fun(callback: fun())
-    ---@field update fun(callback: fun())
-    ---@field stop fun(reason?:string)
-    ---@field stopped fun(callback: fun())
-    ---@field setSpeed fun(speed: number)
-    ---@field getSpeed fun(): number
-    ---@field frames fun(): number
-    ---@field pause fun(pause?: boolean)
-    ---@field saveScreenAsBmp fun(saveFilePath?: string): nil file*
-    ---@field getGrayImageInfo fun(file: file*): nil number[], number, number
     local self = setmetatable({}, Emu)
     
     function self.start(callback)
@@ -43,14 +45,16 @@ function Emu.new()
         _emu.atinput(callback)
     end
 
+    self.crashed = false
     -- Stops script execution (instantly, calls emu.stopped(callback) if any)
-    function self.stop(reason)
-        stop(reason)
+    function self.stop(reason, setCrashed)
+        stop(reason) -- using _G.stop() might not work in some versions
+        self.crashed = (setCrashed == nil) and false or setCrashed -- note that this flag won't work if the script crashes before emu.stop() is called
     end
 
     -- Calls the callback when the emulator is stopped
     function self.stopped(callback)
-        _emu.atstop(callback)
+        _emu.atstop(function() callback(self.crashed) end)
     end
 
     -- Expressed in percentage (100% = normal speed)

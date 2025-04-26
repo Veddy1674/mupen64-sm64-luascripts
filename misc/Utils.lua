@@ -88,6 +88,36 @@ table.copy = function(tbl)
     return t
 end
 
+-- Compares two tables recursively
+---@param a table<any, any>
+---@param b table<any, any>
+table.equals = function(a, b)
+    if a == b then return true end
+    if type(a) ~= type(b) then return false end
+    if type(a) ~= "table" or type(b) ~= "table" then return false end
+
+    for k, v in pairs(a) do
+        if not table.equals(v, b[k]) then return false end
+    end
+
+    for k, v in pairs(b) do
+        if not table.equals(v, a[k]) then return false end
+    end
+
+    return true
+end
+
+-- Returns the index of the first occurrence of value in tbl, or -1 if not found
+---@param tbl table<any, any>
+---@param value any
+---@return number
+table.find = function(tbl, value)
+    for i, v in ipairs(tbl) do
+        if v == value then return i end
+    end
+    return -1
+end
+
 ---@param n number
 hex = function(n)
     return string.format("0x%X", n)

@@ -2,6 +2,6 @@
 
 require("lua.misc.Utils")
 
-local st = "lua/tasbots/DQN/recorder/getcoins.st1"
+local st = "lua/tasbots/DQN/coincatch.st1"
 savestate.savefile(st)
 printf("Saved in \"%s\".", st)

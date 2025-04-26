@@ -1,4 +1,5 @@
 require("lua.lib.aiutils")
+require("lua.misc.Utils") -- math.randomforcefloat?
 
 ---@class AINeuralNetwork
 ---@field sizes number[]
@@ -12,13 +13,30 @@ AINeuralNetwork.__index = AINeuralNetwork
 
 ---@param sizes number[]
 ---@param learningRate number
-function AINeuralNetwork.new(sizes, learningRate)
+---@param decayLearningRate number
+---@param activationHidden "none"|"relu"|"sigmoid"|"tanh"
+---@param activationOutput "none"|"relu"|"sigmoid"|"tanh"
+function AINeuralNetwork.new(sizes, learningRate, decayLearningRate, activationHidden, activationOutput)
     local self = setmetatable({}, AINeuralNetwork)
     self.sizes = sizes
     self.learningRate = learningRate
 
     self.weights = {}
     self.biases = {}
+
+    local function getActivation(act, x)
+        if act == "relu" then return relu(x) end
+        if act == "sigmoid" then return sigmoid(x) end
+        if act == "tanh" then return tanh(x) end
+        return x
+    end
+
+    local function getActivationDerivative(act, x)
+        if act == "relu" then return drelu(x) end
+        if act == "sigmoid" then return dsigmoid(x) end
+        if act == "tanh" then return dtanh(x) end
+        return 1
+    end
 
     local function initWeights(rows, cols)
         local limit = math.sqrt(1 / cols)
@@ -48,7 +66,8 @@ function AINeuralNetwork.new(sizes, learningRate)
                 for j = 1, self.sizes[l] do
                     sum = sum + self.weights[l][i][j] * a[j]
                 end
-                nextA[i] = (l == #self.weights) and sum or relu(sum) -- output layer: no activation
+                nextA[i] = (l == #self.weights) and
+                    getActivation(activationOutput, sum) or getActivation(activationHidden, sum)
             end
             a = nextA
         end
@@ -70,7 +89,8 @@ function AINeuralNetwork.new(sizes, learningRate)
                     s = s + self.weights[l][i][j] * a[j]
                 end
                 sum[i] = s
-                nextA[i] = (l == #self.weights) and s or relu(s)
+                nextA[i] = (l == #self.weights) and
+                    getActivation(activationOutput, s) or getActivation(activationHidden, s)
             end
             table.insert(sums, sum)
             table.insert(activations, nextA)
@@ -95,10 +115,10 @@ function AINeuralNetwork.new(sizes, learningRate)
                 for j = 1, self.sizes[l + 2] do
                     error = error + deltas[l + 1][j] * self.weights[l + 1][j][i]
                 end
-                delta[i] = error * drelu(sums[l][i])
+                delta[i] = error * getActivationDerivative(activationHidden, sums[l][i])
             end
             deltas[l] = delta
-        end
+        end        
 
         -- Update weights and biases
         for l = 1, L do
@@ -107,6 +127,19 @@ function AINeuralNetwork.new(sizes, learningRate)
                     self.weights[l][i][j] = self.weights[l][i][j] + self.learningRate * deltas[l][i] * activations[l][j]
                 end
                 self.biases[l][i] = self.biases[l][i] + self.learningRate * deltas[l][i]
+            end
+        end
+
+        -- Update learning rate
+        -- (The network is meant to be used in real-time training, aka not with epochs, if you use epochs,
+        -- make sure to keep the decayLearningRate extremely close to 1 (e.g 0.99999...) or keep it at 1 to
+        -- avoid the console from getting flooded by warnings and get your emulator frozen)
+        if decayLearningRate ~= 1 then
+            self.learningRate = self.learningRate * (decayLearningRate)
+            if self.learningRate < 0.00001 then
+                print("(warn) Learning rate is low: " .. self.learningRate)
+            elseif self.learningRate > 0.1 then
+                print("(warn) Learning rate is high: " .. self.learningRate)
             end
         end
     end

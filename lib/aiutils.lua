@@ -67,9 +67,9 @@ end
 ---@return number
 function tanh(x) return math.hyperbolicTangent(x) end
 
----@param y number
+---@param x number
 ---@return number
-function dtanh(y) return 1 - y * y end
+function dtanh(x) return 1 - x * x end
 
 ---@param x number
 ---@param min number

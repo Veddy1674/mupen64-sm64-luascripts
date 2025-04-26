@@ -1,17 +1,16 @@
--- coincatch.lua
+-- coinfollowmario.lua
 
 local mario = require("lua.mario.Mario")
-local camera = require("lua.mario.Camera")
 local om = require("lua.object.ObjectManager")
 local aiFactory = require("tasbots.DQN.AIDQN")
 require("lua.tasbots.RL.actionInterpreter")
 
-local savestatePath = "lua/tasbots/DQN/coincatch.st1"
-local savePath = "lua/tasbots/DQN/coincatch.json"
+local savestatePath = "lua/tasbots/DQN/coinfollow.st1"
+local savePath = "lua/tasbots/DQN/coinfollow.json"
 
 --! you must be in the same area of your savestate
 local marioObj = mario.getObj()
-local coin = om.getObjects()[172]
+local coin = om.getObjects()[43]
 ---@cast marioObj Object
 
 local applyPerformance = require("lua.tasbots.DQN.performance")
@@ -28,23 +27,19 @@ local function inputsFormula()
     local cx, _, cz = coin.pos().tuple()
     local dx = (cx - mx)
     local dz = (cz - mz)
-    local dirX, dirZ = Vector2.new(cx - mx, cz - mz).normalize().tuple()
-
-    local yaw = camera.yaw() / 65535 * math.pi * 2
 
     return { -- everything normalized to 0-1
-        dx / 1000, dz / 1000, dirX, dirZ, mario.yawInfo().facing() / 65535,
-        math.sin(yaw), math.cos(yaw)
+        dx / 1200, dz / 1200
     }
 end
 
-local epsilonDecay, epsilonMin, gamma, learningRate = 0.9998, 0.05, 0.99, 0.0007
-local ai = aiFactory.new(inputsFormula, { 7, 6, 4, 4 }, gamma, learningRate, epsilonDecay, epsilonMin, { "Left", "Right", "Up", "Down" })
+local epsilonDecay, epsilonMin, gamma, learningRate = 0.9985, 0.05, 0.99, 0.001
+local ai = aiFactory.new(inputsFormula, { 2, 8, 4 }, gamma, learningRate, epsilonDecay, epsilonMin, { "Left", "Right", "Up", "Down" })
 ai.loadData(savePath)
 local episode = ai.episodes
 
 local function doingBadAction()
-    return marioObj.distanceFrom(coin) > 1000 or mario.getWallTriangle().exists()
+    return marioObj.distanceFrom(coin) > 1000
 end
 
 local function rewardFormula(prevState, nextState, prevAction)
@@ -52,7 +47,7 @@ local function rewardFormula(prevState, nextState, prevAction)
     local distNow = Vector3.new(nextState[1], 0, nextState[2]).magnitude()
 
     local prize = marioObj.overlapsWith(coin) and 10 or 0
-    local bad = marioObj.distanceFrom(coin) > 1000 and -1 or 0 -- only punish for going too far because it doesnt see walls
+    local bad = marioObj.distanceFrom(coin) > 1000 and -1 or 0
     local progress = (distBefore - distNow) * 10
 
     local total = progress * 10 + prize + bad - 0.001
@@ -62,40 +57,93 @@ local function rewardFormula(prevState, nextState, prevAction)
     return total
 end
 
-local function outputsToAction(output)
+local function moveCoin(output)
     if joypad.get().up then print(output) end
-    return joypad[output:lower()] -- example: "UpLeft" -> joypad.upleft -> { X = -91, Y = 91 }
+
+    local savedPos = coin.pos()
+    if output == "Left" then
+        savedPos = coin.pos() + Vector3.new(-5, 0, 0)
+    elseif output == "Right" then
+        savedPos = coin.pos() + Vector3.new(5, 0, 0)
+    elseif output == "Up" then
+        savedPos = coin.pos() + Vector3.new(0, 0, -5)
+    elseif output == "Down" then
+        savedPos = coin.pos() + Vector3.new(0, 0, 5)
+    elseif output == "UpLeft" then
+        savedPos = coin.pos() + Vector3.new(-5, 0, -5)
+    elseif output == "UpRight" then
+        savedPos = coin.pos() + Vector3.new(5, 0, -5)
+    elseif output == "DownLeft" then
+        savedPos = coin.pos() + Vector3.new(-5, 0, 5)
+    elseif output == "DownRight" then
+        savedPos = coin.pos() + Vector3.new(5, 0, 5)
+    end
+    return savedPos
 end
 
 --! frameDelay shouldn't be set to zero, because of "distBefore" in reward formula could be nil or
 -- represent the last frame of the previous episode
-local frameDelay = 4 -- only counts at the start
--- local frameSkip = 4 -- skips reward
+local frameDelay = 3
 local history = {} -- { {prevState, prevAction, prevIndex}, ... }
 
 -- decided externally
-local minX, minZ, maxX, maxZ = -1958.787, -565.146, -1258.787, 234.854
+local minX, minZ, maxX, maxZ = -1764.012,-1709.436,-1362.912,-702.1326
 
-local function reset(resetMario)
-    joypad.set({})
+local function reset()
+    -- joypad.set({})
 
-    -- random mario position
-    if resetMario then
-        local x = math.randomforcefloat(minX, maxX)
-        local z = math.randomforcefloat(minZ, maxZ)
-        mario.pos(Vector3.new(x, mario.pos().y, z))
-    end
     -- random coin position
     local x = math.randomforcefloat(minX, maxX)
     local z = math.randomforcefloat(minZ, maxZ)
     coin.pos(Vector3.new(x, coin.pos().y, z))
 
-    applyPerformance.applyConfig(marioObj, om.getObjects(), nil)
+    applyPerformance.applyConfig(marioObj, om.getObjects(), {coin, marioObj})
 end
 
 local function start()
     savestate.loadfile(savestatePath)
-    reset(true)
+    reset()
+
+    -- QUICK PRE TRAINING
+    local function preTrain()
+        local state = {math.random(), math.random()}
+        local targetX, targetZ = 0, 0
+    
+        if state[1] > state[2] then
+            if state[1] > 0 then
+                action = "Right"
+                targetX = 1
+            else
+                action = "Left"
+                targetX = -1
+            end
+        else
+            if state[2] > 0 then
+                action = "Down"
+                targetZ = 1
+            else
+                action = "Up"
+                targetZ = -1
+            end
+        end
+    
+        local nextState = {state[1] + 0.05 * targetX, state[2] + 0.05 * targetZ}
+        -- reward by distance progress without using rewardFormula
+        local reward = (Vector3.new(state[1], 0, state[2]).magnitude() - Vector3.new(nextState[1], 0, nextState[2]).magnitude()) * 10
+    
+        ai.remember(state, table.find(_directions, action), reward, nextState)
+        ai.train()
+    end
+    
+
+    local epochs = 1500
+    print("Pre-training...")
+    for _ = 1, epochs do
+        preTrain()
+    end
+    print("Pre-training done! (" .. epochs .. " epochs)")
+    ai.epsilon = 1.0
+    ---------------
 end
 
 local function checkStateValid(state)
@@ -123,16 +171,16 @@ local function update()
     
     table.insert(history, {state, action, index})
 
-    joypad.set(outputsToAction(action))
-    if joypad.get().right then print("Action: " .. action) end
-    
+    coin.pos(moveCoin(action))
+    -- joypad.set({}) -- avoid inputs
+
     if #history >= frameDelay then
         local old = table.remove(history, 1)
         local nextState = inputsFormula()
         checkStateValid(nextState)
 
         local failed = doingBadAction()
-        local success = marioObj.overlapsWith(coin)
+        local success = coin.overlapsWith(marioObj)
 
         if success or failed then
             local finalReward = rewardFormula(old[1], nextState, old[2])
@@ -142,7 +190,7 @@ local function update()
             episode = episode + 1
             printf("Episode %d, avgReward: %.2f, lr: %f, epsilon: %.2f (%s)", episode, avgReward, ai.network.learningRate, ai.epsilon, (failed and "FAILED" or "SUCCESS"))
             ai.updateGraph(episode, avgReward)
-            reset(failed)
+            reset()
             history = {}
             f = 0
             return --!
@@ -167,5 +215,9 @@ emu.stopped(function(crashed)
     reset()
     if crashed then return end
     ai.saveData(savePath)
-    ai.makeGraph("lua/tasbots/DQN/coincatch_reward.csv", "lua/tasbots/DQN/coincatch_epsilon.csv")
+    ai.makeGraph("lua/tasbots/DQN/coinfollow_reward.csv", "lua/tasbots/DQN/coinfollow_epsilon.csv")
 end)
+
+-- a little important and nice detail to note:
+-- the AI learns to understand its own and mario's hitbox without it being an input,
+-- because it is trained to end as quickly as possible

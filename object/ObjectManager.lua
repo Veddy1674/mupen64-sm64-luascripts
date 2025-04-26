@@ -3,7 +3,7 @@
 -- memory order:
 -- first loaded object address + 0x260 = next object address
 
-local json = require("lib.json")
+local json = require("lua.lib.json")
 local object = require("lua.object.Object")
 
 startAddress = 0x8033D488 -- first object

@@ -11,7 +11,7 @@
 
 local om = require("lua.object.ObjectManager")
 local mario = require("lua.mario.Mario")
-local json = require("lib.json")
+local json = require("lua.lib.json")
 
 local obj = om.getObjects()[53]
 local saveFile = "lua/dev/objCommonValues/coin.json"

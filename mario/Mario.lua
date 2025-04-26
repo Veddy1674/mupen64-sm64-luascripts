@@ -68,6 +68,10 @@ mario.getAbsoluteInputs = function(inputs)
 		absDirection.x * math.sin(yaw) + absDirection.z * math.cos(yaw)
 	
     return { X = relX * 127 // 1, Y = relZ * -127 // 1 }
+	-- 0 = +Z forward
+	-- 16384 = +X right
+	-- 32768 = -Z back
+	-- 49152 = -X left
 end
 
 ---@alias MarioAction number
