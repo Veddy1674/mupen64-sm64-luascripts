@@ -5,8 +5,8 @@ local om = require("lua.object.ObjectManager")
 local aiFactory = require("tasbots.DQN.AIDQN")
 require("lua.tasbots.RL.actionInterpreter")
 
-local savestatePath = "lua/tasbots/DQN/coinfollow.st1"
-local savePath = "lua/tasbots/DQN/coinfollow.json"
+local savestatePath = "lua/tasbots/DQN/samples/coinfollow.st1"
+local savePath = "lua/tasbots/DQN/samples/coinfollow.json"
 
 --! you must be in the same area of your savestate
 local marioObj = mario.getObj()

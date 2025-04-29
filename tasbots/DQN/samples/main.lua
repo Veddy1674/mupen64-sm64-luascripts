@@ -5,8 +5,8 @@ local camera = require("lua.mario.Camera")
 local om = require("lua.object.ObjectManager")
 local aiFactory = require("tasbots.DQN.AIDQN")
 
-local savePath = "lua/tasbots/DQN/example.st1"
-local csvPath = "lua/tasbots/DQN/reward_log.csv"
+local savePath = "lua/tasbots/DQN/samples/example.st1"
+local csvPath = "lua/tasbots/DQN/samples/reward_log.csv"
 
 local marioObj = mario.getObj()
 ---@cast marioObj Object

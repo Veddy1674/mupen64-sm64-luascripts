@@ -107,6 +107,13 @@ table.equals = function(a, b)
     return true
 end
 
+-- Faster version of table.insert (unsafe)
+---@param tbl table<any, any>
+---@param val any
+table.fastinsert = function(tbl, val)
+    tbl[#tbl + 1] = val
+end
+
 -- Returns the index of the first occurrence of value in tbl, or -1 if not found
 ---@param tbl table<any, any>
 ---@param value any
@@ -138,12 +145,36 @@ math.hyperbolicTangent = function(x) -- math.tanh is deprecated
     return (e - 1) / (e + 1)
 end
 
+---@param x number
+---@param y number
+---@return number
+math.power = function(x, y)
+    local result = 1
+    for i = 1, y do
+        result = result * x
+    end
+    return result
+end
+
 string.split = function(str, sep)
     local result = {}
     for part in str:gmatch("([^"..sep.."]+)") do
         table.insert(result, part)
     end
     return result
+end
+
+string.specialFormatNumber = function(num) -- custom format that adds a dot every 3 digits from the right
+    local reversed = string.reverse(num)
+    -- add a dot every 3 digits if there is a character after it
+    local formatted = ""
+    for i = 1, #reversed do
+        formatted = formatted .. reversed:sub(i, i)
+        if i % 3 == 0 and i ~= #reversed then
+            formatted = formatted .. "."
+        end
+    end
+    return string.reverse(formatted)
 end
 
 printf = function(fmt, ...)

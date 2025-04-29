@@ -6,12 +6,11 @@ local om = require("lua.object.ObjectManager")
 local aiFactory = require("tasbots.DQN.AIDQN")
 require("lua.tasbots.RL.actionInterpreter")
 
-local savestatePath = "lua/tasbots/DQN/coincatch.st1"
-local savePath = "lua/tasbots/DQN/coincatch.json"
+local savestatePath = "lua/tasbots/DQN/samples/coincatch.st1"
+local savePath = "lua/tasbots/DQN/samples/coincatch.json"
 
 --! you must be in the same area of your savestate
 local marioObj = mario.getObj()
-local coin = om.getObjects()[172]
 ---@cast marioObj Object
 
 local applyPerformance = require("lua.tasbots.DQN.performance")
@@ -24,27 +23,30 @@ applyPerformance.setConfig("debug")
 
 -- creating ai
 local function inputsFormula()
-    local mx, _, mz = mario.pos().tuple()
-    local cx, _, cz = coin.pos().tuple()
-    local dx = (cx - mx)
-    local dz = (cz - mz)
-    local dirX, dirZ = Vector2.new(cx - mx, cz - mz).normalize().tuple()
+    local mx, my, mz = mario.pos().tuple()
+    local speedInfo = mario.speed()
+    local floor = mario.getFloorTriangle() -- normal()
 
     local yaw = camera.yaw() / 65535 * math.pi * 2
 
     return { -- everything normalized to 0-1
-        dx / 1000, dz / 1000, dirX, dirZ, mario.yawInfo().facing() / 65535,
-        math.sin(yaw), math.cos(yaw)
+        mx / 8000, my / 8000, mz / 8000,
+        speedInfo.xSliding / 100, speedInfo.zSliding / 100, speedInfo.hSliding / 100,
+        mario.yawInfo().facing() / 65535,
+        math.sin(yaw), math.cos(yaw),
+        -- floor.normal().x, floor.normal().z,
     }
 end
 
+-- (UNFINISHED)
+
 local epsilonDecay, epsilonMin, gamma, learningRate = 0.9998, 0.05, 0.99, 0.0007
-local ai = aiFactory.new(inputsFormula, { 7, 6, 4, 4 }, gamma, learningRate, epsilonDecay, epsilonMin, { "Left", "Right", "Up", "Down" })
+local ai = aiFactory.new(inputsFormula, { #inputsFormula(), 20, 20, 5 }, gamma, learningRate, epsilonDecay, epsilonMin, { "Left", "Right", "Up", "UpLeft", "UpRight" })
 ai.loadData(savePath)
 local episode = ai.episodes
 
 local function doingBadAction()
-    return marioObj.distanceFrom(coin) > 1000 or mario.getWallTriangle().exists()
+    return mario.speed().y < -56
 end
 
 local function rewardFormula(prevState, nextState, prevAction)

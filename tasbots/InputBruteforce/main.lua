@@ -1,7 +1,7 @@
 -- main.lua
 
 require("lua.tasbots.InputBruteforce.boring")
-local actionInterpreter = require("tasbots.RL.actionInterpreter")
+local actionInterpreter = require("lua.tasbots.RL.actionInterpreter")
 
 -- local function start()
 reset()
@@ -95,7 +95,7 @@ local function update()
 
         framelist = {}
         reset()
-        checkProgress()
+        -- checkProgress()
 
         -- ban the action itself (example: Left,A) and the related (Left), or (Left) and (Left,A)
         banAction(prevState, prevAction, true, 3)
@@ -122,7 +122,7 @@ local function update()
     local i = 0
     repeat
         i = i + 1
-        action = actionInterpreter.customRandomActions(prevState, promisingFramelist, copyChance, mutationChance, randomChance)
+        action = actionInterpreter.customRandomActions2(prevState, promisingFramelist, copyChance, mutationChance, randomChance)
     until not table.any(banlist, function(ban) return ban[1] == prevState and ban[2] ~= action end) or i > 25
 
     table.insert(framelist, action)

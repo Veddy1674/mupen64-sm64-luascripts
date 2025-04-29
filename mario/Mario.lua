@@ -7,10 +7,12 @@ local om = require("lua.object.ObjectManager")
 local mario = {}
 mario.base = 0x8033B170
 
+---@param list? Object[]
 ---@return Object|nil
-mario.getObj = function()
+mario.getObj = function(list)
+	list = list or om.getObjects()
 	---@param o Object
-	return table.compare(om.getObjects(), function(o) return o.isA("Mario") end)
+	return table.compare(list, function(o) return o.isA("Mario") end)
 end
 
 ---@param v? Vector3
@@ -162,6 +164,9 @@ mario.getFloorTriangle = function()
 	triangle.exists = function() return memory.access(triangle.base, SHORT) ~= 0x0 end
 	triangle.height = function() return memory.access(mario.base + 0x70, FLOAT) end
 	triangle.distToMario = function() return math.abs(mario.pos().y - triangle.height()) end
+	-- triangle.steepness = function(v) return memory.access(mario.base + 0x, FLOAT, v) end
+	-- triangle.normalX = function() return memory.access(mario.base + 0x, FLOAT) end
+	-- triangle.normalY = function() return memory.access(mario.base + 0x, FLOAT) end
 
 	return triangle
 end

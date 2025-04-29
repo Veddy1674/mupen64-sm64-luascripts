@@ -1,8 +1,8 @@
 -- playback.lua
 
 require("lua.tasbots.InputBruteforce.shared")
-local json = require("lib.json")
-local actionInterpreter = require("tasbots.RL.actionInterpreter")
+local json = require("lua.lib.json")
+local actionInterpreter = require("lua.tasbots.RL.actionInterpreter")
 
 local file = io.open(goodEndingFile, "r")
 if not file then emu.stop() return end

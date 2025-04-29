@@ -1,7 +1,7 @@
 -- boring.lua
 
 require("lua.tasbots.InputBruteforce.shared")
-local json = require("lib.json")
+local json = require("lua.lib.json")
 
 _instance = -1
 _maxInstance = -1

@@ -26,7 +26,7 @@ local function outputToAction(output)
         action = "DownRight"
     elseif x < -threshold and y < -threshold then
         action = "DownLeft"
-    elseif x == 0 and y == 0 then
+    elseif (x == 0 and y == 0) or (x == -1 or y == -1) then -- pressing right + left or up + down, it causes -1
         action = "None"
     end
     if action == nil then
@@ -74,21 +74,21 @@ local function update()
     local state = inputsFormula()
     local output = joypad.get()
 
-    table.insert(currentDataset, { state, outputToAction(output) })
+    table.insert(currentDataset, { state, outputToAction(output), simplereward(state, output) })
 
     if doingGoodAction() then
         for _, v in ipairs(currentDataset) do
-            table.insert(dataset, { v[1], v[2] })
+            table.insert(dataset, { v[1], v[2], v[3] })
         end
-        currentDataset = {}
 
         if recordCount <= 1 then
             saveDataset(dataset) -- prints success
             emu.stop("Success.", false)
         else
             recordCount = recordCount - 1
-            print("Recording finished, " .. recordCount .. " left.")
+            print("Recording finished, " .. recordCount .. " left. (" .. #currentDataset .. " frames recorded)")
         end
+        currentDataset = {}
         start()
         return
     end

@@ -46,6 +46,13 @@ function om.getObjects(order)
 	return objects
 end
 
+-- Optimized version to get a specific object at a specific slotIndex without creating 260 objects with #getObjects()[...]
+---@param slotIndex integer
+---@return Object
+function om.getObject(slotIndex)
+	return object.new(startAddress + (slotIndex - 1) * 0x260, slotIndex)
+end
+
 -- RETURNS new sorted list, does not modify objectList param
 ---@param objectList? Object[]
 ---@param order "Memory"|"DistToMario"
