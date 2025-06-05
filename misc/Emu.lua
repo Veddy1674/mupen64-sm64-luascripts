@@ -14,6 +14,7 @@ local bitmap = require("lua.lib.bitmap")
 ---@class Emu
 ---@field start fun(callback: fun())
 ---@field update fun(callback: fun())
+---@field atUpdateScreen fun(callback: fun())
 ---@field stop fun(reason?:string, setCrashed?: boolean)
 ---@field stopped fun(callback: fun(crashed: boolean))
 ---@field setSpeed fun(speed: number)
@@ -21,8 +22,10 @@ local bitmap = require("lua.lib.bitmap")
 ---@field frames fun(): number
 ---@field pause fun(pause?: boolean)
 ---@field isPaused fun(): boolean
----@field saveScreenAsBmp fun(saveFilePath?: string): nil file*
------@field getGrayImageInfo fun(file: file*): nil number[], number, number
+---@field screenshot fun(path?:string): file*
+---@field screenshotRaw fun(path?:string)
+--@field saveScreenAsBmp fun(saveFilePath?: string): nil file*
+--@field getGrayImageInfo fun(file: file*): nil number[], number, number
 ---@field crashed boolean
 local Emu = {}
 Emu.__index = Emu
@@ -43,6 +46,11 @@ function Emu.new()
     -- Calls the callback every frame (_emu.atinput)
     function self.update(callback)
         _emu.atinput(callback)
+    end
+
+    -- Calls the callback every time the screen is updated (_emu.atupdatescreen)
+    function self.atUpdateScreen(callback)
+        _emu.atupdatescreen(callback)
     end
 
     self.crashed = false
@@ -83,8 +91,23 @@ function Emu.new()
         return _emu.getpause()
     end
 
+    -- Saves a screenshot of the game in the current frame as a .bmp, with black borders
+    function self.screenshot(path)
+        returnFile = returnFile or false
+        path = path or "screenshots/"
+
+        _emu.screenshot(path)
+        ---@type file*
+        return io.open(path, "r")
+    end
+
+    function self.screenshotRaw(path) -- "optimized", doesn't return the file
+        path = path or "screenshots/"
+        _emu.screenshot(path)
+    end
+
     -- Might be unsafe: make sure to close the file when no more using it
-    function self.saveScreenAsBmp(saveFilePath)
+    -- function self.saveScreenAsBmp(saveFilePath)
         -- saveFilePath = saveFilePath or "lua/misc/temp/"
         -- pause = (pause == nil) and true or pause
 
@@ -108,11 +131,11 @@ function Emu.new()
 
         -- ---@cast screenshot file*
         -- return saveFilePath .. "screen00.bmp"
-        return nil
-    end
+        -- return nil
+    -- end
 
     -- Returns pixel, height and width of the image and closes the file
-    function self.getGrayImageInfo(file)
+    -- function self.getGrayImageInfo(file)
         -- local data = bitmap.from_file(file)
 
         -- ---@type number[]
@@ -129,32 +152,32 @@ function Emu.new()
         -- end
         
         -- return pixels, w, h
-        return nil
-    end
+        -- return nil
+    -- end
 
-    function self.convertToBlackWhite(inputPath, outputPath, threshold)
-        threshold = threshold or 128
+    -- function self.convertToBlackWhite(inputPath, outputPath, threshold)
+    --     threshold = threshold or 128
 
-        local bmpData = bitmap.open(inputPath)
+    --     local bmpData = bitmap.open(inputPath)
 
-        local w, h = bmpData.width, bmpData.height
+    --     local w, h = bmpData.width, bmpData.height
 
-        for y = 1, h do
-            for x = 1, w do
-                local r, g, b = bmpData:get_pixel(x, y)
-                local gray = (r + g + b) / 3
-                local value = (gray > threshold) and 255 or 0
-                -- bmpData:set_pixel(x, y, value, value, value)
-            end
-        end
+    --     for y = 1, h do
+    --         for x = 1, w do
+    --             local r, g, b = bmpData:get_pixel(x, y)
+    --             local gray = (r + g + b) / 3
+    --             local value = (gray > threshold) and 255 or 0
+    --             -- bmpData:set_pixel(x, y, value, value, value)
+    --         end
+    --     end
 
         -- local bwStr = bmpData:tostring()
         -- local out = io.open(outputPath, "wb")
         -- out:write(bwStr)
         -- out:close()
 
-        print("saved:", outputPath)
-    end
+    --     print("saved:", outputPath)
+    -- end
 
     return self
 end

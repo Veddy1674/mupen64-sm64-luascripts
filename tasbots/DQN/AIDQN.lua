@@ -4,11 +4,34 @@ local AINeuralNetwork = require("lua.tasbots.DQN.AINeuralNetwork")
 require("lua.lib.aiutils")
 local json = require("lua.lib.json")
 
+local function deepCopy2D(original)
+    local copy = {}
+    for i, row in ipairs(original) do
+        copy[i] = {}
+        for j, val in ipairs(row) do
+            copy[i][j] = val
+        end
+    end
+    return copy
+end
+
+local function deepCopy3D(original)
+    local copy = {}
+    for i, layer in ipairs(original) do
+        copy[i] = {}
+        for j, neuron in ipairs(layer) do
+            copy[i][j] = {}
+            for k, val in ipairs(neuron) do
+                copy[i][j][k] = val
+            end
+        end
+    end
+    return copy
+end
+
 ---@class AIDQN
 ---@field gamma number
 ---@field epsilon number
----@field epsilonDecay number
----@field epsilonMin number
 ---@field inputs fun():number[]
 ---@field actions string[]
 ---@field network AINeuralNetwork
@@ -32,21 +55,17 @@ AIDQN.__index = AIDQN
 ---@param inputFunc fun():number[]
 ---@param sizes number[]
 ---@param learningRate number
----@param epsilonDecay number
----@param epsilonMin number
 ---@param actions string[]
-function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonMin, actions)
+function AIDQN.new(inputFunc, sizes, gamma, learningRate, actions, replayBufferSize, batchSize)
     local self = setmetatable({}, AIDQN)
     self.gamma = gamma
     self.epsilon = 1.0
-    self.epsilonDecay = epsilonDecay
-    self.epsilonMin = epsilonMin
     self.inputs = inputFunc
     self.actions = actions
 
     self.replayBuffer = {}
-    self.bufferSize = 2000
-    self.batchSize = 128
+    self.bufferSize = replayBufferSize or 2000
+    self.batchSize =  batchSize or 128
 
     function self.remember(state, actionIndex, reward, nextState)
         table.insert(self.replayBuffer, { state, actionIndex, reward, nextState })
@@ -69,7 +88,7 @@ function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonM
         return self.actions[bestIndex], bestIndex
     end
 
-    -- Updates epsilon
+    -- DOESN'T Update epsilon
     function self.train()
         if #self.replayBuffer < self.batchSize then return end
 
@@ -85,12 +104,11 @@ function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonM
             for i = 1, #qValues do
                 target[i] = qValues[i]
             end
-            target[actionIndex] = reward + self.gamma * nextQ[argmax(nextQ)] + (math.random() - 0.5) * 0.01
+            local noise = (math.random() - 0.5) * 0.01
+            target[actionIndex] = reward + self.gamma * nextQ[argmax(nextQ)]-- + noise
 
             self.network.train(state, target)
         end
-    
-        self.epsilon = math.max(self.epsilon * self.epsilonDecay, self.epsilonMin)
     end
 
     function self.copyTarget()
@@ -117,7 +135,10 @@ function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonM
 
     local function copyBiases(fromB, toB)
         for i = 1, math.min(#fromB, #toB) do
-            toB[i][1] = fromB[i][1]
+            toB[i] = {}
+            for j = 1, math.min(#fromB[i], #toB[i]) do
+                toB[i][j] = fromB[i][j]
+            end
         end
     end
 
@@ -131,8 +152,6 @@ function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonM
 
             episodes = self.episodes,
             epsilon = self.epsilon, --!
-            epsilonDecay = self.epsilonDecay, -- 0.9998
-            epsilonMin = self.epsilonMin, -- 0.05
             gamma = self.gamma, -- 0.99
             learningRate = self.network.learningRate, -- 0.0001
         }
@@ -145,13 +164,17 @@ function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonM
         print("Saved successfully to " .. path)
     end
 
+    self.network = AINeuralNetwork.new(sizes, learningRate, 1.0, "relu", "none")
+    self.targetNetwork = AINeuralNetwork.new(sizes, learningRate, 1.0, "relu", "none")
+
     function self.loadData(path)
         local function default()
             print("Loading for the first time.")
 
-            self.actions = actions
             self.network = AINeuralNetwork.new(sizes, learningRate, 1.0, "relu", "none")
             self.targetNetwork = AINeuralNetwork.new(sizes, learningRate, 1.0, "relu", "none")
+            self.epsilon = 1.0
+            self.episodes = 0
         end
         if path == nil then
             default()
@@ -168,79 +191,35 @@ function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonM
         file:close()
 
         if not data or not data.layers then
+            print("Corrupted or incomplete data file.")
             default()
             return --!
+        end
+
+        if not table.equals(data.layers, sizes) then
+            printf("Previous net: (%s) does not match current net: (%s)",
+                json.encode(data.layers), json.encode(sizes)
+            )
+            default()
+            return
         end
 
         self.episodes = data.episodes -- overwrite
         self.actions = data.actions --! overwrite outputs
         self.epsilon = data.epsilon -- overwrite
-        self.epsilonDecay = data.epsilonDecay -- overwrite
-        self.epsilonMin = data.epsilonMin -- overwrite
-        self.gamma = data.gamma -- overwrite
+        self.gamma = gamma
 
-        -- end early
-        if table.equals(sizes,  data.layers) then
-            self.network = AINeuralNetwork.new(sizes, data.learningRate, 1.0, "relu", "none")
-            self.targetNetwork = AINeuralNetwork.new(sizes, data.learningRate, 1.0, "relu", "none")
+        self.network.weights = deepCopy3D(data.weights)
+        self.network.biases = deepCopy2D(data.biases)
+        self.targetNetwork.weights = deepCopy3D(data.weights)
+        self.targetNetwork.biases = deepCopy2D(data.biases)
 
-            -- no copy, just overwrite
-            -- self.network.weights = data.weights
-            -- self.network.biases = data.biases
-            -- self.targetNetwork.weights = data.weights
-            -- self.targetNetwork.biases = data.biases
-            copyWeights(data.weights, self.network.weights)
-            copyBiases(data.biases, self.network.biases)
-            copyWeights(data.weights, self.targetNetwork.weights)
-            copyBiases(data.biases, self.targetNetwork.biases)
+        self.network.learningRate = learningRate
+        self.network.initialLearningRate = learningRate
+        self.targetNetwork.learningRate = data.learningRate
+        self.targetNetwork.initialLearningRate = data.learningRate
 
-            print("Loaded successfully from " .. path)
-            return
-        end
-
-        local endSizes = {} -- { 2, 8, 4 }
-        if not table.equals(data.layers, sizes) then
-            print("Different layers configuration found, trying to optimize...")
-
-            if #data.layers ~= #sizes then
-                emu.stop("Different number of layers, aborting.", true) -- TODO
-                return
-            end
-
-            -- use the bigger config for each layer
-            local inputCount = data.layers[1]
-            endSizes[1] = inputCount > sizes[1] and inputCount or sizes[1]
-
-            for i = 2, #data.layers - 1 do
-                local hiddenCount = data.layers[i]
-                endSizes[i] = hiddenCount > sizes[i] and hiddenCount or sizes[i]
-            end
-
-            local outputCount = data.layers[#data.layers]
-            endSizes[#endSizes + 1] = outputCount > sizes[#sizes] and outputCount or sizes[#sizes]
-
-            self.epsilon = 1.0 -- overwrite, has to re-learn (expecially if the output is different)
-        end
-
-        -- overwrite learningRate
-        self.network = AINeuralNetwork.new(endSizes, data.learningRate, 1.0, "relu", "none")
-        self.targetNetwork = AINeuralNetwork.new(endSizes, data.learningRate, 1.0, "relu", "none")
-
-        -- restore some data:
-        -- Input: must have the same size or data being bigger
-        -- Hidden: can only copy till the smaller size
-        -- Output: must have the same size or data is lost
-        copyWeights(data.weights, self.network.weights)
-        copyBiases(data.biases, self.network.biases)
-
-        -- target
-        copyWeights(data.weights, self.targetNetwork.weights)
-        copyBiases(data.biases, self.targetNetwork.biases)
-
-        print("Loaded (different) data successfully from " .. path)
-        printf("Input before: %d, after: %d; Hidden before: %d, after: %d; Output before: %d, after: %d",
-            data.layers[1], endSizes[1], data.layers[2], endSizes[2], data.layers[#data.layers], endSizes[#endSizes]
-        )
+        print("Loaded successfully from " .. path)
     end
 
     self.graphInfo = {
@@ -248,8 +227,8 @@ function AIDQN.new(inputFunc, sizes, gamma, learningRate, epsilonDecay, epsilonM
         epsilonCSV = "",
     }
     function self.updateGraph(episode, avgReward)
-        self.graphInfo.rewardCSV = string.format("%s,%d\n", self.graphInfo.rewardCSV, episode, avgReward)
-        self.graphInfo.epsilonCSV = string.format("%s,%d,%.5f,%.5f\n", self.graphInfo.epsilonCSV, episode, self.epsilon, self.network.learningRate / learningRate) --!
+        self.graphInfo.rewardCSV = self.graphInfo.rewardCSV .. string.format("%d,%.2f\n", episode, avgReward) --!
+        self.graphInfo.epsilonCSV = self.graphInfo.epsilonCSV .. string.format("%d,%.5f,%.5f\n", episode, self.epsilon, self.network.learningRate / self.network.initialLearningRate)
     end
 
     function self.makeGraph(rewardPath, epsilonPath)

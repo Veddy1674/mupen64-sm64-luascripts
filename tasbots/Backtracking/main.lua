@@ -18,9 +18,9 @@ local savePath = "lua/tasbots/Backtracking/CCMslide.json"
 -- sadly a low amount of window causes lag because of the frequent savestate
 -- and a high amount of window causes even more lag because of the enormous amount of possible sequences
 -- (tested: with windows = 4, it goes from ~500 to ~100 fps)
-local window = 12 -- should be divisible by 2
+local window = 16 -- should be divisible by 2
 local actions = { "Left", "Right", "Up", "UpLeft", "UpRight" }
-local tempSavesCount = 3
+local tempSavesCount = 5
 local tries -- init in start()
 local onlyOptimizeDeath = true -- if true, it only backtracks when "badAction()" is true
 
@@ -30,18 +30,19 @@ for i = 1, tempSavesCount do
 end
 
 local function badAction()
-    local floor = mario.getFloorTriangle()
-    return floor.distToMario() > 250 or floor.base == 0x80193130 -- specific triangle that leads mario to the shortcut
+    -- local floor = mario.getFloorTriangle()
+    -- return floor.distToMario() > 250 or floor.base == 0x80193130 -- specific triangle that leads mario to the shortcut
+    return mario.speed().y < -56
 end
 
 local marioObj = mario.getObj()
 ---@cast marioObj Object
----@type Object|nil
+---@type Object
 local goalCoin = nil
 -- in this specific savestate, a coin is created at -6488.632, -5783.54, -5670.879 (at the end of the slide)
 local function goodAction()
     -- return joypad.get().up -- simplifying: human feedback
-    return marioObj.overlapsWith(om.getObject(1))
+    return marioObj.overlapsWith(goalCoin)
 end
 
 local possibleActions
@@ -66,8 +67,13 @@ local function start()
     end
 
     savestate.loadfile(mainSavestate)
+    goalCoin = om.getObject(1) -- avoiding memory alloc
 
-    savestate.savefile(tempSavestates[1])
+    -- save every savestate (to avoid fail to load when loading a random state)
+    for i = 1, tempSavesCount do
+        savestate.savefile(tempSavestates[i])
+    end
+
     prevAction = actions[math.random(#actions)] -- optimizing, to avoid "if prevAction ~= nil" in update()
 end
 
@@ -105,8 +111,7 @@ local currentTries = 0
 local totalRecoverAttempts = 0
 local totalRecoverSuccess = 0
 local totalBadSequences = 0
-om.spawnObject("coin", Vector3.new(-6488.632, -5783.54, -5670.879))
-if true then return end
+
 local function update()
     absF = absF + 1
 
@@ -144,7 +149,7 @@ local function update()
             totalRecoverAttempts = totalRecoverAttempts + 1
             -- cannot tell if loading the first, the last or a random savestate is better
             -- (logic is in "savePointer = 1" in the "if badAction" condition)
-            savePointer = math.random(tempSavesCount)
+            savePointer = math.random(tempSavesCount) -- the point of "tries" might be useless now
             savestate.loadfile(tempSavestates[savePointer]) -- previous logic: load first save, then second...
             return
         elseif f > window then

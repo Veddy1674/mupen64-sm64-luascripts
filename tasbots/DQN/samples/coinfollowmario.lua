@@ -10,7 +10,7 @@ local savePath = "lua/tasbots/DQN/samples/coinfollow.json"
 
 --! you must be in the same area of your savestate
 local marioObj = mario.getObj()
-local coin = om.getObjects()[43]
+local coin = om.getObject(43)
 ---@cast marioObj Object
 
 local applyPerformance = require("lua.tasbots.DQN.performance")

@@ -13,7 +13,7 @@ local actions = {
 }
 local savePath = "lua/tasbots/PathFollow/example.st1"
 
-local goalObj = om.getObjects()[43]
+local goalObj = om.getObject(43)
 local marioObj = mario.getObj()
 ---@cast marioObj Object
 

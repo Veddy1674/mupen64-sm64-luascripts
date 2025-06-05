@@ -9,7 +9,7 @@ local savestatePath = "lua/tasbots/DQN/coinfollow.st1"
 local savePath = "lua/tasbots/DQN/coinfollow.json"
 
 local marioObj = mario.getObj()
-local coin = om.getObjects()[43]
+local coin = om.getObject(43)
 ---@cast marioObj Object
 
 -- creating ai

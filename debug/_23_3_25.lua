@@ -6,7 +6,7 @@ local mario = require("lua.mario.Mario")
 
 local obj = nil
 local function start()
-    obj = om.getObjects()[43]
+    obj = om.getObject(43)
 end
 
 local function update()

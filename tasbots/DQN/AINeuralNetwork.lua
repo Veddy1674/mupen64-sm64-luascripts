@@ -1,3 +1,5 @@
+-- AINeuralNetwork.lua
+
 require("lua.lib.aiutils")
 require("lua.misc.Utils") -- math.randomforcefloat?
 
@@ -5,6 +7,7 @@ require("lua.misc.Utils") -- math.randomforcefloat?
 ---@field sizes number[]
 ---@field weights number[][][]
 ---@field biases number[][]
+---@field initialLearningRate number
 ---@field learningRate number
 ---@field predict fun(inputs:number[]):number[]
 ---@field train fun(inputs:number[], targets:number[])
@@ -20,6 +23,7 @@ function AINeuralNetwork.new(sizes, learningRate, decayLearningRate, activationH
     local self = setmetatable({}, AINeuralNetwork)
     self.sizes = sizes
     self.learningRate = learningRate
+    self.initialLearningRate = learningRate
 
     self.weights = {}
     self.biases = {}
@@ -53,7 +57,7 @@ function AINeuralNetwork.new(sizes, learningRate, decayLearningRate, activationH
     for l = 2, #sizes do
         table.insert(self.weights, initWeights(sizes[l], sizes[l - 1]))
         local bias = {}
-        for i = 1, sizes[l] do bias[i] = 0 end
+        for i = 1, sizes[l] do bias[i] = 0.01 end
         table.insert(self.biases, bias)
     end
 

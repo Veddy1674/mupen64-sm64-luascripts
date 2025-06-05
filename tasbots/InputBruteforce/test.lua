@@ -10,7 +10,7 @@ local coin = nil
 
 function init()
     marioObj = mario.getObj()
-    coin = om.getObjects()[114]
+    coin = om.getObject(114)
     ---@cast marioObj Object
 end
 init()

@@ -42,4 +42,8 @@ camera.pitchRad = function(yaw)
 	return (camera.pitch() / 65535) * (2 * math.pi)
 end
 
+camera.mode = function(mode)
+	return memory.access(camera.base + 0x1B4, SHORT, mode)
+end
+
 return camera

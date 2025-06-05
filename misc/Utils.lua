@@ -1,13 +1,16 @@
--- Property.lua - Required in almost every script (undirectly)
+-- Utils.lua - Required in almost every script (undirectly)
 
 require("lua.misc.Emu")
 require("lua.misc.Memory")
+require("lua.misc.Avi")
 require("lua.misc.Joypad")
 require("lua.math.Vector2")
 require("lua.math.Vector3")
+require("lua.math.Vertices")
 require("lua.math.Speed4")
 require("lua.math.Speed9")
 require("lua.math.Hitbox")
+require("lua.math.Raycast")
 um = require("lua.math.UtilsMath")
 
 -- general

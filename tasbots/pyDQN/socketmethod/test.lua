@@ -31,7 +31,7 @@ require("lua.tasbots.RL.actionInterpreter")
 local savePath = "lua/tasbots/pyDQN/coincatch.st1"
 
 local marioObj = mario.getObj()
-local coin = om.getObjects()[172]
+local coin = om.getObject(172)
 ---@cast marioObj Object
 
 -- decided externally

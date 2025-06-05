@@ -8,7 +8,7 @@ local obj = nil
 
 local timer = 0
 local function start()
-    obj = om.getObjects()[17]
+    obj = om.getObject(17)
 end
 
 local function update()

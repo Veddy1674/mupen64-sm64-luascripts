@@ -22,7 +22,7 @@ importantAddressOffsets = {
 ---@field firstUnloadedCell fun():Object
 ---@field copyInfo fun(obj:Object, obj2:Object):Object
 ---@field duplicateObject fun(obj:Object, replaceSlot?:integer):Object
----@field spawnObject fun(commonName:string,pos?:Vector3,speed?:Speed4):Object
+---@field spawnObject fun(commonName:"coin"|"toad",pos?:Vector3,speed?:Speed4):Object
 local om = {}
 
 ---@param order "Memory"|"DistToMario"
@@ -121,7 +121,7 @@ function om.copyInfo(obj, obj2)
 end
 
 function om.duplicateObject(obj, replaceSlot)
-	local copied = replaceSlot and om.getObjects()[replaceSlot] or om.firstUnloadedCell()
+	local copied = replaceSlot and om.getObject(replaceSlot) or om.firstUnloadedCell()
 
 	---@cast copied Object
 	copied = om.copyInfo(obj, copied)

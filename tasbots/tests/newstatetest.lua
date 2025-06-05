@@ -15,7 +15,7 @@ local function contains(tbl, element)
     return false
 end
 
-local defCoin = om.getObjects()[43]
+local defCoin = om.getObject(43)
 local factor = 100
 -- 40: about 1.3 punches to change state
 -- punches move mario by about 29 units

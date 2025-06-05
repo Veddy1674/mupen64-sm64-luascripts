@@ -4,7 +4,7 @@ local mario = require("lua.mario.Mario")
 local camera = require("lua.mario.Camera")
 local om = require("lua.object.ObjectManager")
 
-local goalObj = om.getObjects()[43]
+local goalObj = om.getObject(43)
 local marioObj = mario.getObj()
 
 local function update()

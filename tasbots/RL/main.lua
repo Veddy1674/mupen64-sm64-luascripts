@@ -2,7 +2,7 @@
 
 local mario = require("lua.mario.Mario")
 local om = require("lua.object.ObjectManager")
-local aiFactory = require("tasbots.RL.AIRL")
+local aiFactory = require("lua.tasbots.RL.AIRL")
 
 local savePath = "lua/tasbots/RL/example.st1"
 local dataPath = "lua/tasbots/RL/getCoin.json"
@@ -10,7 +10,7 @@ local csvPath = "lua/tasbots/RL/reward_log.csv"
 
 local marioObj = mario.getObj()
 ---@cast marioObj Object
-local coin = om.getObjects()[44]
+local coin = om.getObject(44)
 
 ---@type string[]
 local actionNames = {

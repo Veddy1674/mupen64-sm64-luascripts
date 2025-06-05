@@ -11,7 +11,7 @@ local savePath = "lua/tasbots/DQN/samples/coincatch.json"
 
 --! you must be in the same area of your savestate
 local marioObj = mario.getObj()
-local coin = om.getObjects()[172]
+local coin = om.getObject(172)
 ---@cast marioObj Object
 
 local applyPerformance = require("lua.tasbots.DQN.performance")
@@ -24,22 +24,20 @@ applyPerformance.setConfig("debug")
 
 -- creating ai
 local function inputsFormula()
-    local mx, _, mz = mario.pos().tuple()
-    local cx, _, cz = coin.pos().tuple()
-    local dx = (cx - mx)
-    local dz = (cz - mz)
-    local dirX, dirZ = Vector2.new(cx - mx, cz - mz).normalize().tuple()
+    local m = mario.pos()
+    local c = coin.pos()
+    local dx = math.abs(m.x - c.x) / 1300
+    local dz = math.abs(m.z - c.z) / 1300
 
-    local yaw = camera.yaw() / 65535 * math.pi * 2
+    -- local yaw = (camera.yaw() / 65535 * math.pi * 2) / (2 * math.pi)
 
     return { -- everything normalized to 0-1
-        dx / 1000, dz / 1000, dirX, dirZ, mario.yawInfo().facing() / 65535,
-        math.sin(yaw), math.cos(yaw)
+        dx, dz, mario.yawInfo().facing() / 65535
     }
 end
 
-local epsilonDecay, epsilonMin, gamma, learningRate = 0.9998, 0.05, 0.99, 0.0007
-local ai = aiFactory.new(inputsFormula, { 7, 6, 4, 4 }, gamma, learningRate, epsilonDecay, epsilonMin, { "Left", "Right", "Up", "Down" })
+local epsilonDecay, epsilonMin, gamma, learningRate = 0.9998, 0.05, 0.5, 0.001
+local ai = aiFactory.new(inputsFormula, { 3, 12, 4 }, gamma, learningRate, epsilonDecay, epsilonMin, { "Left", "Right", "Up", "Down" }, 20000, 64)
 ai.loadData(savePath)
 local episode = ai.episodes
 
@@ -51,15 +49,11 @@ local function rewardFormula(prevState, nextState, prevAction)
     local distBefore = Vector3.new(prevState[1], 0, prevState[2]).magnitude()
     local distNow = Vector3.new(nextState[1], 0, nextState[2]).magnitude()
 
-    local prize = marioObj.overlapsWith(coin) and 10 or 0
-    local bad = marioObj.distanceFrom(coin) > 1000 and -1 or 0 -- only punish for going too far because it doesnt see walls
-    local progress = (distBefore - distNow) * 10
+    local delta = distBefore - distNow
+    if marioObj.overlapsWith(coin) then print("ok") return 100 end
+    if doingBadAction() then return -10 end
 
-    local total = progress * 10 + prize + bad - 0.001
-    if joypad.get().down then printf("Before: %.2f After: %.2f, Progress: %.2f", distBefore, distNow, progress) end
-    if joypad.get().left then print("Reward: " .. total) end
-
-    return total
+    return delta * 10
 end
 
 local function outputsToAction(output)
@@ -69,7 +63,7 @@ end
 
 --! frameDelay shouldn't be set to zero, because of "distBefore" in reward formula could be nil or
 -- represent the last frame of the previous episode
-local frameDelay = 4 -- only counts at the start
+local frameDelay = 1 -- only counts at the start
 -- local frameSkip = 4 -- skips reward
 local history = {} -- { {prevState, prevAction, prevIndex}, ... }
 
@@ -99,9 +93,10 @@ local function start()
 end
 
 local function checkStateValid(state)
-    if table.any(state, function(t) return t > 1 or t < 0 end) then
-        -- emu.stop("State out of bounds (bigger than 1 or less than 0)", false) -- (it saves)
-        return --! don't do anything if state is out of bounds
+    local oob = table.compare(state, function(t) return t > 1 or t < 0 end)
+    if oob then
+        emu.stop("State out of bounds (bigger than 1 or less than 0): " .. tostring(oob), false) -- (it saves)
+        return
     end
 end
 

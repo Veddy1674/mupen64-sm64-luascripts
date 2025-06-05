@@ -22,7 +22,7 @@ _goalObj = nil
 
 function init()
     _marioObj = mario.getObj()
-    -- _goalObj = om.getObjects()[114]
+    -- _goalObj = om.getObject(114)
 end
 
 function doingBadAction(frame)

@@ -160,13 +160,20 @@ end
 mario.getFloorTriangle = function()
 	local triangle = {}
 
-	triangle.base = mario.base + 0x68
-	triangle.exists = function() return memory.access(triangle.base, SHORT) ~= 0x0 end
+	triangle.base = memory.access(mario.base + 0x68, UINT)
+	triangle.exists = function() return triangle.base ~= 0x0 end
 	triangle.height = function() return memory.access(mario.base + 0x70, FLOAT) end
 	triangle.distToMario = function() return math.abs(mario.pos().y - triangle.height()) end
 	-- triangle.steepness = function(v) return memory.access(mario.base + 0x, FLOAT, v) end
 	-- triangle.normalX = function() return memory.access(mario.base + 0x, FLOAT) end
 	-- triangle.normalY = function() return memory.access(mario.base + 0x, FLOAT) end
+	triangle.vertices = function()
+		-- as an array (previous implementation): [1] = x1, y1, z1; [2] = x2, y2, z2; [3] = x3, y3, z3
+		local vec1 = Vector3.new(memory.access(triangle.base + 0xA, SHORT), memory.access(triangle.base + 0xC, SHORT), memory.access(triangle.base + 0xE, SHORT))
+		local vec2 = Vector3.new(memory.access(triangle.base + 0x10, SHORT), memory.access(triangle.base + 0x12, SHORT), memory.access(triangle.base + 0x14, SHORT))
+		local vec3 = Vector3.new(memory.access(triangle.base + 0x16, SHORT), memory.access(triangle.base + 0x18, SHORT), memory.access(triangle.base + 0x1A, SHORT))
+		return Vertices.new(vec1, vec2, vec3)
+	end
 
 	return triangle
 end

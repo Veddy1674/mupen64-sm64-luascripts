@@ -48,7 +48,7 @@ end
 ---@param x number
 ---@return number
 function drelu(x)
-    return x > 0 and 1 or 0
+    return (x > 0) and 1 or 0
 end
 
 ---@param x number
@@ -60,16 +60,22 @@ end
 ---@param x number
 ---@return number
 function dsigmoid(x)
-    return x * (1 - x)
+    local s = sigmoid(x)
+    return s * (1 - s)
 end
 
 ---@param x number
 ---@return number
-function tanh(x) return math.hyperbolicTangent(x) end
+function tanh(x)
+    return math.hyperbolicTangent(x)
+end
 
 ---@param x number
 ---@return number
-function dtanh(x) return 1 - x * x end
+function dtanh(x)
+    local t = tanh(x)
+    return 1 - (t * t)
+end
 
 ---@param x number
 ---@param min number
@@ -77,4 +83,15 @@ function dtanh(x) return 1 - x * x end
 ---@return number
 function clamp(x, min, max)
     return math.min(math.max(x, min), max)
+end
+
+---@param rawYaw number
+---@return Vector3
+function yawToVector(rawYaw)
+    local angle = (math.pi / 2) - (rawYaw / 65536) * (2 * math.pi)
+
+    local vecX = math.cos(angle)
+    local vecZ = math.sin(angle)
+
+    return Vector3.new(vecX, 0, vecZ)
 end

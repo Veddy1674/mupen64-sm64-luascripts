@@ -10,7 +10,7 @@ local csvPath = "lua/tasbots/DQN/samples/reward_log.csv"
 
 local marioObj = mario.getObj()
 ---@cast marioObj Object
-local coin = om.getObjects()[44]
+local coin = om.getObject(44)
 
 -- creating ai
 local function inputsFormula()
