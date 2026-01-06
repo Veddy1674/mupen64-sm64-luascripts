@@ -1,5 +1,7 @@
+## Note: I consider this project *old* and not quite useful for anything, I could say it was an experiment of the old me, not something long-term. This project, or atleast, this branch, will be left as it is. Just as a memory for myself, as I made this when I was roughly 15 to 16 years old, I believe. Cheers everyone!
+
 # Super Mario 64 LUA SCRIPTS for `Mupen 64 1.0.10 & 1.1.8-2`
-**Tested in versions: 1.0.10, 1.1.8.2, 1.1.9-8, previous versions may be unstable**
+**Tested in versions: 1.0.10, 1.1.8.2, 1.1.9-8, previous versions might be unstable**
 
 A little framework built in LUA through *Mupen64's lua scripts support*, used for memory reading & writing.
 
